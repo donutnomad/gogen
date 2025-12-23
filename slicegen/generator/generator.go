@@ -196,6 +196,7 @@ func (g *Generator) generateCode(types map[string]*xast2.StructType, packageName
 				TypeName:     sliceTypeName,
 				TypeItemName: typeName,
 				FieldName:    fieldName,
+				MethodName:   Pluralize(fieldName),
 				FieldType:    g.getFieldType(structType.StructType, field.Type),
 				UsePointer:   g.usePointer,
 				PtrPrefix:    ptrPrefix,

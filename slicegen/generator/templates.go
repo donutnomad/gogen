@@ -24,7 +24,8 @@ type MethodTemplateData struct {
 type FieldTemplateData struct {
 	TypeName     string // 切片类型名称 (例如: UserSlice)
 	TypeItemName string // 元素类型名称 (例如: User)
-	FieldName    string // 字段名称
+	FieldName    string // 字段名称 (例如: Name)
+	MethodName   string // 方法名称，复数形式 (例如: Names)
 	FieldType    string // 字段类型
 	UsePointer   bool   // 是否使用指针
 	PtrPrefix    string // 指针前缀 ("*" 或 "")
@@ -74,8 +75,8 @@ func (s {{.PtrPrefix}}{{.TypeItemName}}) Map{{.FieldName}}(item {{.PtrPrefix}}{{
 // MethodField 字段提取方法模板
 var MethodField = MyGenerator[FieldTemplateData]{
 	Template: `
-// {{.FieldName}} returns a slice of {{.FieldName}} field values
-func (s {{.TypeName}}) {{.FieldName}}() []{{.FieldType}} {
+// {{.MethodName}} returns a slice of {{.FieldName}} field values
+func (s {{.TypeName}}) {{.MethodName}}() []{{.FieldType}} {
 {{- if .UsePointer}}
 	return lo.Map(s, func(item {{.PtrPrefix}}{{.TypeItemName}}, index int) {{.FieldType}} {
 		return item.{{.FieldName}}

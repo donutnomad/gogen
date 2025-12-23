@@ -178,9 +178,9 @@ func TestSliceGeneratorGenerate(t *testing.T) {
 			params:     SliceParams{Ptr: "true"},
 			expectContains: []string{
 				"type UserSlice []*User",
-				"func (s UserSlice) ID()",
-				"func (s UserSlice) Name()",
-				"func (s UserSlice) Email()",
+				"func (s UserSlice) IDs()",
+				"func (s UserSlice) Names()",
+				"func (s UserSlice) Emails()",
 			},
 		},
 		{
@@ -189,8 +189,8 @@ func TestSliceGeneratorGenerate(t *testing.T) {
 			params:     SliceParams{Exclude: "[CreatedAt,UpdatedAt]", Ptr: "true"},
 			expectContains: []string{
 				"type ProductSlice []*Product",
-				"func (s ProductSlice) ID()",
-				"func (s ProductSlice) Name()",
+				"func (s ProductSlice) IDs()",
+				"func (s ProductSlice) Names()",
 			},
 			expectMissing: []string{
 				"func (s ProductSlice) CreatedAt()",
@@ -203,13 +203,13 @@ func TestSliceGeneratorGenerate(t *testing.T) {
 			params:     SliceParams{Include: "[ID,Name,Email]", Ptr: "true"},
 			expectContains: []string{
 				"type CustomerSlice []*Customer",
-				"func (s CustomerSlice) ID()",
-				"func (s CustomerSlice) Name()",
-				"func (s CustomerSlice) Email()",
+				"func (s CustomerSlice) IDs()",
+				"func (s CustomerSlice) Names()",
+				"func (s CustomerSlice) Emails()",
 			},
 			expectMissing: []string{
-				"func (s CustomerSlice) Phone()",
-				"func (s CustomerSlice) Address()",
+				"func (s CustomerSlice) Phones()",
+				"func (s CustomerSlice) Addresses()",
 			},
 		},
 		{
