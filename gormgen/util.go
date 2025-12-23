@@ -158,37 +158,3 @@ func parseGormTag(tag string) map[string]string {
 
 	return result
 }
-
-// isJSONType2 检查类型是否是datatypes.JSONType[T]格式
-func isJSONType2(fieldType string) bool {
-	return strings.HasPrefix(fieldType, "datatypes.JSONType[") && strings.HasSuffix(fieldType, "]")
-}
-
-// isJSONSliceType 检查类型是否是datatypes.JSONSlice[T]格式
-func isJSONSliceType(fieldType string) bool {
-	return strings.HasPrefix(fieldType, "datatypes.JSONSlice[") && strings.HasSuffix(fieldType, "]")
-}
-
-// extractJSONTypeParameter 从datatypes.JSONType[T]中提取T
-func extractJSONTypeParameter(fieldType string) string {
-	if !isJSONType2(fieldType) {
-		return fieldType
-	}
-
-	// 去除"datatypes.JSONType["前缀和"]"后缀
-	start := len("datatypes.JSONType[")
-	end := len(fieldType) - 1
-	return fieldType[start:end]
-}
-
-// extractJSONSliceParameter 从datatypes.JSONSlice[T]中提取T
-func extractJSONSliceParameter(fieldType string) string {
-	if !isJSONSliceType(fieldType) {
-		return fieldType
-	}
-
-	// 去除"datatypes.JSONSlice["前缀和"]"后缀
-	start := len("datatypes.JSONSlice[")
-	end := len(fieldType) - 1
-	return fieldType[start:end]
-}
