@@ -8,7 +8,9 @@ require (
 	github.com/donutnomad/xchain v0.0.0-20251216085056-ec21251b5a75
 	github.com/samber/lo v1.52.0
 	github.com/stretchr/testify v1.11.1
+	go.uber.org/mock v0.5.0
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
+	golang.org/x/mod v0.31.0
 	golang.org/x/tools v0.40.0
 	gorm.io/datatypes v1.2.7
 	gorm.io/gorm v1.31.1
@@ -70,13 +72,11 @@ require (
 	github.com/x448/float16 v0.8.4 // indirect
 	go.mongodb.org/mongo-driver v1.11.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
-	go.uber.org/mock v0.5.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	go.uber.org/ratelimit v0.2.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
 	golang.org/x/arch v0.20.0 // indirect
 	golang.org/x/crypto v0.46.0 // indirect
-	golang.org/x/mod v0.31.0 // indirect
 	golang.org/x/net v0.48.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.39.0 // indirect
