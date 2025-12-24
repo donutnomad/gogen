@@ -74,8 +74,15 @@ func (c *ParseContext) parseStructWithStackAndImportsAndBaseDir(filename, struct
 		return nil, fmt.Errorf("未找到结构体 %s", structName)
 	}
 
-	// 解析字段（传入栈信息、导入信息和基础目录）
-	fields, err := c.parseStructFieldsWithStackAndImportsAndBaseDir(targetStruct.Fields.List, stack, imports, baseDir)
+	// 提取当前文件的 imports 用于解析字段类型的 PkgPath
+	// 这是关键修复：嵌入的外部包结构体（如 gorm.Model）的字段类型需要使用该文件自己的 imports
+	currentFileImports, err := c.extractImports(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	// 解析字段（使用当前文件的 imports 解析 PkgPath，使用传入的 imports 解析嵌入类型）
+	fields, err := c.parseStructFieldsWithStackAndImportsAndBaseDir(targetStruct.Fields.List, stack, currentFileImports, baseDir)
 	if err != nil {
 		return nil, err
 	}
