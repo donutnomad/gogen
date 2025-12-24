@@ -61,7 +61,7 @@ func runDev(args []string) {
 		Verbose:  *verbose,
 		Output:   outputPath,
 		Async:    *async,
-		Debounce: 5 * time.Second,
+		Debounce: 2 * time.Second,
 	}
 
 	if err := dev(opts); err != nil {
@@ -171,6 +171,22 @@ func (r *devRunner) handleEvent(event fsnotify.Event) {
 	}
 
 	filePath := event.Name
+
+	// 检查是否是新建目录，如果是则添加到监听列表
+	if event.Op&fsnotify.Create != 0 {
+		if info, err := os.Stat(filePath); err == nil && info.IsDir() {
+			// 跳过隐藏目录、vendor 和 testdata
+			name := info.Name()
+			if !strings.HasPrefix(name, ".") && name != "vendor" && name != "testdata" {
+				if err := r.watcher.Add(filePath); err == nil {
+					if r.opts.Verbose {
+						fmt.Printf("添加监听目录: %s\n", filePath)
+					}
+				}
+			}
+			return
+		}
+	}
 
 	// 只处理 .go 文件
 	if !strings.HasSuffix(filePath, ".go") {
