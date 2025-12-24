@@ -38,20 +38,21 @@ func main() {
 	}
 
 	args := flag.Args()
+
+	// 默认命令是 gen
 	if len(args) == 0 {
-		usage()
-		os.Exit(1)
+		runGen([]string{"./..."})
+		return
 	}
 
-	// 检查子命令
+	// 检查是否是子命令
 	cmd := args[0]
 	switch cmd {
 	case "gen":
 		runGen(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "未知命令: %s\n\n", cmd)
-		usage()
-		os.Exit(1)
+		// 不是子命令，当作路径参数处理，执行 gen
+		runGen(args)
 	}
 }
 
@@ -107,17 +108,15 @@ func runGen(args []string) {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `gotoolkit - Go 代码生成工具
+	fmt.Fprintf(os.Stderr, `gogen - Go 代码生成工具
 
 用法:
-  gotoolkit <命令> [选项] [路径...]
-
-命令:
-  gen     运行代码生成
+  gogen [选项] [路径...]
+  gogen gen [选项] [路径...]
 
 路径:
   支持 Go 包路径模式，如:
-    ./...          递归扫描当前目录及子目录
+    ./...          递归扫描当前目录及子目录（默认）
     ./pkg/...      递归扫描指定目录
     ./models/...   递归扫描 models 目录
 
@@ -137,8 +136,10 @@ func usage() {
   $PACKAGE  - 包名
 
 示例:
-  gotoolkit gen ./...                       递归扫描当前目录
-  gotoolkit -v gen ./models/...             详细模式扫描 models 目录
-  gotoolkit -output $FILE_gen gen ./...     指定输出文件名
+  gogen                                     扫描当前目录（默认 ./...）
+  gogen ./...                               递归扫描当前目录
+  gogen -v ./models/...                     详细模式扫描 models 目录
+  gogen -output $FILE_gen ./...             指定输出文件名
+  gogen -no-output ./...                    每个生成器输出到独立文件
 `)
 }
