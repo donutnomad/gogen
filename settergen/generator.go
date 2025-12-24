@@ -22,7 +22,7 @@ const generatorName = "settergen"
 type SetterParams struct {
 	Patch       string `param:"name=patch,required=false,default=none,description=Patch 模式: none|v2|full，支持组合如 v2|full"`
 	PatchMapper string `param:"name=patch_mapper,required=false,default=ToPO,description=Patch mapper 方法名"`
-	Setter      string `param:"name=setter,required=false,default=false,description=是否生成 setter 方法: true|false"`
+	Setter      string `param:"name=setter,required=false,default=true,description=是否生成 setter 方法: true|false"`
 }
 
 // SetterGenerator 实现 plugin.Generator 接口

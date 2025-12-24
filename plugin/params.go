@@ -3,6 +3,7 @@ package plugin
 import (
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 // ParseParamsFromStruct 从结构体的tag解析参数定义
@@ -78,16 +79,25 @@ func parseParamTag(tag string) ParamDef {
 
 // splitTag 分割tag字符串为键值对
 // 格式: key1=value1,key2=value2,...
+// 注意: description 字段必须放在最后，因为它的值可能包含逗号
 func splitTag(tag string) map[string]string {
 	result := make(map[string]string)
+
+	// 特殊处理 description 字段（它可能包含逗号）
+	const descKey = "description="
+	if idx := strings.Index(tag, descKey); idx != -1 {
+		// 提取 description 之前的部分
+		beforeDesc := tag[:idx]
+		// description 的值是剩余的所有内容
+		result["description"] = tag[idx+len(descKey):]
+		tag = strings.TrimSuffix(beforeDesc, ",")
+	}
 
 	var key, value string
 	var inKey = true
 	var escaped = false
 
-	for i := 0; i < len(tag); i++ {
-		ch := tag[i]
-
+	for _, ch := range tag {
 		// 处理转义
 		if escaped {
 			if inKey {

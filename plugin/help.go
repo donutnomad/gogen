@@ -30,8 +30,19 @@ func FormatHelpText(registry *Registry) string {
 		// 显示参数定义
 		sb.WriteString("    参数:\n")
 
-		// 通用参数
-		sb.WriteString("      output - 输出文件路径（支持模板变量）\n")
+		// 检查生成器是否定义了自己的 output 参数
+		hasOutput := false
+		for _, param := range paramDefs {
+			if param.Name == "output" {
+				hasOutput = true
+				break
+			}
+		}
+
+		// 如果没有自定义 output，显示通用参数
+		if !hasOutput {
+			sb.WriteString("      output - 输出文件路径（支持模板变量）\n")
+		}
 
 		// 生成器特定参数
 		if len(paramDefs) > 0 {
