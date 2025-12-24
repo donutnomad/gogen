@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/donutnomad/gogen/gormgen"
+	"github.com/donutnomad/gogen/mockgen"
 	"github.com/donutnomad/gogen/plugin"
 	"github.com/donutnomad/gogen/settergen"
 	"github.com/donutnomad/gogen/slicegen"
@@ -17,6 +18,7 @@ func init() {
 	plugin.MustRegister(gormgen.NewGsqlGenerator())
 	plugin.MustRegister(settergen.NewSetterGenerator())
 	plugin.MustRegister(slicegen.NewSliceGenerator())
+	plugin.MustRegister(mockgen.NewMockGenerator())
 }
 
 var (

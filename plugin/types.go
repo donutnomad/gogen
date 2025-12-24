@@ -130,6 +130,12 @@ type GenerateResult struct {
 	// value: gg.Generator 定义
 	Definitions map[string]*gg.Generator
 
+	// RawOutputs 是原始字节输出，用于不使用 gg 库的生成器
+	// key: 输出文件路径（相对路径或绝对路径）
+	// value: 原始字节内容
+	// 注意: RawOutputs 中的文件不会与其他生成器的输出合并
+	RawOutputs map[string][]byte
+
 	// Errors 错误列表
 	Errors []error
 
@@ -172,6 +178,7 @@ func (c *FileConfig) GetPluginOutput(pluginName string) string {
 func NewGenerateResult() *GenerateResult {
 	return &GenerateResult{
 		Definitions: make(map[string]*gg.Generator),
+		RawOutputs:  make(map[string][]byte),
 	}
 }
 
@@ -181,6 +188,12 @@ func (r *GenerateResult) AddDefinition(path string, gen *gg.Generator) {
 		r.Definitions = make(map[string]*gg.Generator)
 	}
 	r.Definitions[path] = gen
+}
+
+// AddRawOutput 添加原始字节输出
+// 用于不使用 gg 库的生成器
+func (r *GenerateResult) AddRawOutput(path string, data []byte) {
+	r.RawOutputs[path] = data
 }
 
 // AddError 添加错误

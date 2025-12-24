@@ -160,7 +160,12 @@ func RunWithOptionsAndStats(ctx context.Context, opts *RunOptions) (*RunStats, e
 					continue
 				}
 				// 存储解析后的参数（解引用指针）
-				target.ParsedParams = reflect.ValueOf(paramsProto).Elem().Interface()
+				val := reflect.ValueOf(paramsProto)
+				if val.Kind() != reflect.Ptr {
+					allErrors = append(allErrors, fmt.Errorf("NewParams() 必须返回指针类型, 得到: %T", paramsProto))
+					continue
+				}
+				target.ParsedParams = val.Elem().Interface()
 			}
 		}
 
@@ -179,6 +184,16 @@ func RunWithOptionsAndStats(ctx context.Context, opts *RunOptions) (*RunStats, e
 		// 收集 gg 定义，按文件分组
 		for path, def := range genResult.Definitions {
 			fileDefinitions[path] = append(fileDefinitions[path], def)
+		}
+
+		// 收集原始字节输出，转换为 gg.Generator 后加入 fileDefinitions
+		for path, data := range genResult.RawOutputs {
+			parsedGen, err := ParseSourceToGG(data)
+			if err != nil {
+				allErrors = append(allErrors, fmt.Errorf("解析原始输出 %s 失败: %w", path, err))
+				continue
+			}
+			fileDefinitions[path] = append(fileDefinitions[path], parsedGen)
 		}
 
 		allErrors = append(allErrors, genResult.Errors...)
