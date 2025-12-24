@@ -31,7 +31,7 @@ type SetterGenerator struct {
 }
 
 func NewSetterGenerator() *SetterGenerator {
-	return &SetterGenerator{
+	gen := &SetterGenerator{
 		BaseGenerator: *plugin.NewBaseGeneratorWithParamsStruct(
 			generatorName,
 			[]string{"Setter"},
@@ -39,6 +39,8 @@ func NewSetterGenerator() *SetterGenerator {
 			SetterParams{}, // 传入参数结构体的零值实例
 		),
 	}
+	gen.SetPriority(20) // Setter 优先级第二
+	return gen
 }
 
 // Generate 执行代码生成

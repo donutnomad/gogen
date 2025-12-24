@@ -23,7 +23,7 @@ type GsqlGenerator struct {
 }
 
 func NewGsqlGenerator() *GsqlGenerator {
-	return &GsqlGenerator{
+	gen := &GsqlGenerator{
 		BaseGenerator: *plugin.NewBaseGeneratorWithParamsStruct(
 			generatorName,
 			[]string{"Gsql"},
@@ -31,6 +31,8 @@ func NewGsqlGenerator() *GsqlGenerator {
 			GsqlParams{}, // 传入参数结构体的零值实例
 		),
 	}
+	gen.SetPriority(10) // Gsql 优先级最高
+	return gen
 }
 
 // Generate 执行代码生成

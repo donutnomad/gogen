@@ -24,7 +24,7 @@ type MockGenerator struct {
 
 // NewMockGenerator 创建新的 MockGenerator
 func NewMockGenerator() *MockGenerator {
-	return &MockGenerator{
+	gen := &MockGenerator{
 		BaseGenerator: *plugin.NewBaseGeneratorWithParamsStruct(
 			pluginGeneratorName,
 			[]string{"Mock"},
@@ -32,6 +32,8 @@ func NewMockGenerator() *MockGenerator {
 			MockParams{},
 		),
 	}
+	gen.SetPriority(40) // Mock 优先级第四
+	return gen
 }
 
 // Generate 执行代码生成

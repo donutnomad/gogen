@@ -26,7 +26,7 @@ type SliceGenerator struct {
 }
 
 func NewSliceGenerator() *SliceGenerator {
-	return &SliceGenerator{
+	gen := &SliceGenerator{
 		BaseGenerator: *plugin.NewBaseGeneratorWithParamsStruct(
 			generatorName,
 			[]string{"Slice"},
@@ -34,6 +34,8 @@ func NewSliceGenerator() *SliceGenerator {
 			SliceParams{},
 		),
 	}
+	gen.SetPriority(30) // Slice 优先级第三
+	return gen
 }
 
 // Generate 执行代码生成
