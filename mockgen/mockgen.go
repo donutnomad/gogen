@@ -186,7 +186,7 @@ func Run(opts Options) error {
 	if err := g.Generate(pkg, outputPackageName, outputPackagePath); err != nil {
 		return fmt.Errorf("failed generating mock: %v", err)
 	}
-	output := g.Output()
+	output := g.Output(true)
 	dst := os.Stdout
 	if len(opts.Destination) > 0 {
 		if err := os.MkdirAll(filepath.Dir(opts.Destination), os.ModePerm); err != nil {

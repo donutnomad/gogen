@@ -16,12 +16,11 @@ package mockgen
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
+	"go/build"
 	"go/token"
 	"log"
 	"os"
-	"os/exec"
 	"path"
 	"sort"
 	"strconv"
@@ -137,7 +136,6 @@ func (g *generator) Generate(pkg *model.Package, outputPkgName string, outputPac
 	}
 	sort.Strings(sortedPaths)
 
-	// TODO: 耗时严重
 	packagesName := createPackageMap(sortedPaths)
 
 	definedImports := make(map[string]string, len(im))
@@ -608,7 +606,10 @@ func (o identifierAllocator) allocateIdentifier(want string) string {
 }
 
 // Output returns the generator's output, formatted in the standard Go style.
-func (g *generator) Output() []byte {
+func (g *generator) Output(format bool) []byte {
+	if !format {
+		return g.buf.Bytes()
+	}
 	src, err := toolsimports.Process(g.destination, g.buf.Bytes(), nil)
 	if err != nil {
 		log.Fatalf("Failed to format generated source code: %s\n%s", err, g.buf.String())
@@ -616,28 +617,32 @@ func (g *generator) Output() []byte {
 	return src
 }
 
+// packageNameCache caches import path to package name mappings
+var packageNameCache = make(map[string]string)
+
 // createPackageMap returns a map of import path to package name
 // for specified importPaths.
+// This implementation uses go/build.Import instead of exec "go list"
+// for better performance.
 func createPackageMap(importPaths []string) map[string]string {
-	var pkg struct {
-		Name       string
-		ImportPath string
-	}
 	pkgMap := make(map[string]string)
-	b := bytes.NewBuffer(nil)
-	args := []string{"list", "-json=ImportPath,Name"}
-	args = append(args, importPaths...)
-	cmd := exec.Command("go", args...)
-	cmd.Stdout = b
-	_ = cmd.Run()
-	dec := json.NewDecoder(b)
-	for dec.More() {
-		err := dec.Decode(&pkg)
-		if err != nil {
-			log.Printf("failed to decode 'go list' output: %v", err)
+	for _, importPath := range importPaths {
+		// Check cache first
+		if name, ok := packageNameCache[importPath]; ok {
+			pkgMap[importPath] = name
 			continue
 		}
-		pkgMap[pkg.ImportPath] = pkg.Name
+
+		// Use go/build.Import to get package info without exec
+		pkg, err := build.Import(importPath, ".", 0)
+		if err != nil {
+			// Fallback: use path basename as package name
+			_, baseName := path.Split(importPath)
+			pkgMap[importPath] = sanitize(baseName)
+			continue
+		}
+		pkgMap[importPath] = pkg.Name
+		packageNameCache[importPath] = pkg.Name
 	}
 	return pkgMap
 }

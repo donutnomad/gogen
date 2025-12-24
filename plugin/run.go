@@ -281,7 +281,6 @@ func RunWithOptionsAndStats(ctx context.Context, opts *RunOptions) (*RunStats, e
 
 	// 合并同一文件的定义并写入
 	for path, definitions := range fileDefinitions {
-		var nt = time.Now()
 		genNames := fileGenNames[path]
 		merged, err := mergeDefinitionsWithSeparator(definitions, genNames)
 		if err != nil {
@@ -293,7 +292,7 @@ func RunWithOptionsAndStats(ctx context.Context, opts *RunOptions) (*RunStats, e
 			allErrors = append(allErrors, fmt.Errorf("写入文件 %s 失败: %w", path, err))
 		} else {
 			stats.FileCount++
-			fmt.Printf("生成文件: %s (%v)\n", path, time.Since(nt))
+			fmt.Printf("生成文件: %s\n", path)
 		}
 	}
 
