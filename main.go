@@ -22,9 +22,10 @@ func init() {
 }
 
 var (
-	verbose = flag.Bool("v", false, "详细输出")
-	help    = flag.Bool("h", false, "显示帮助信息")
-	output  = flag.String("output", "", "默认输出路径（支持模板变量 $FILE, $PACKAGE）")
+	verbose  = flag.Bool("v", false, "详细输出")
+	help     = flag.Bool("h", false, "显示帮助信息")
+	output   = flag.String("output", "generate.go", "默认输出路径（支持模板变量 $FILE, $PACKAGE）")
+	noOutput = flag.Bool("no-output", false, "禁用默认输出（每个生成器输出到独立文件）")
 )
 
 func main() {
@@ -79,11 +80,17 @@ func runGen(args []string) {
 	// 运行代码生成
 	ctx := context.Background()
 
+	// 确定输出路径：-no-output 时传空字符串，否则使用 -output 的值
+	outputPath := *output
+	if *noOutput {
+		outputPath = ""
+	}
+
 	opts := &plugin.RunOptions{
 		Registry: registry,
 		Patterns: patterns,
 		Verbose:  *verbose,
-		Output:   *output,
+		Output:   outputPath,
 	}
 
 	stats, err := plugin.RunWithOptionsAndStats(ctx, opts)
