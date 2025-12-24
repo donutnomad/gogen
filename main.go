@@ -12,6 +12,7 @@ import (
 	"github.com/donutnomad/gogen/plugin"
 	"github.com/donutnomad/gogen/settergen"
 	"github.com/donutnomad/gogen/slicegen"
+	"github.com/donutnomad/gogen/swaggen"
 	"github.com/samber/lo"
 )
 
@@ -21,6 +22,7 @@ func init() {
 	plugin.MustRegister(settergen.NewSetterGenerator())
 	plugin.MustRegister(slicegen.NewSliceGenerator())
 	plugin.MustRegister(mockgen.NewMockGenerator())
+	plugin.MustRegister(swaggen.NewSwagGenerator())
 }
 
 var (

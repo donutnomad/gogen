@@ -6,7 +6,10 @@ require (
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/donutnomad/gg v0.0.0-20251222233722-c347b8af41b6
 	github.com/donutnomad/xchain v0.0.0-20251216085056-ec21251b5a75
+	github.com/fsnotify/fsnotify v1.9.0
+	github.com/gin-gonic/gin v1.11.0
 	github.com/samber/lo v1.52.0
+	github.com/spf13/cast v1.3.0
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/mock v0.5.0
 	golang.org/x/exp v0.0.0-20251219203646-944ab1f22d93
@@ -29,14 +32,12 @@ require (
 	github.com/donutnomad/solana-web3 v0.0.0-20250313072913-99732fd085a1 // indirect
 	github.com/ethereum/go-ethereum v1.16.7 // indirect
 	github.com/fatih/color v1.16.0 // indirect
-	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.10 // indirect
 	github.com/gagliardetto/binary v0.8.0 // indirect
 	github.com/gagliardetto/solana-go v1.10.0 // indirect
 	github.com/gagliardetto/treeout v0.1.4 // indirect
 	github.com/gin-contrib/sse v1.1.0 // indirect
-	github.com/gin-gonic/gin v1.11.0 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.28.0 // indirect

@@ -318,15 +318,10 @@ func (s *Scanner) parseTypeDecl(fset *token.FileSet, filePath, packageName strin
 	}
 
 	annotations := ParseAnnotations(docText)
-	if len(annotations) == 0 {
-		return
-	}
 
-	if len(s.annotationFilter) > 0 {
+	// 应用过滤器
+	if len(s.annotationFilter) > 0 && len(annotations) > 0 {
 		annotations = FilterByNames(annotations, s.annotationFilter...)
-		if len(annotations) == 0 {
-			return
-		}
 	}
 
 	for _, spec := range decl.Specs {
@@ -343,8 +338,11 @@ func (s *Scanner) parseTypeDecl(fset *token.FileSet, filePath, packageName strin
 			Node:        typeSpec,
 		}
 
-		switch typeSpec.Type.(type) {
+		switch t := typeSpec.Type.(type) {
 		case *ast.StructType:
+			if len(annotations) == 0 {
+				continue
+			}
 			target.Kind = TargetStruct
 			result.structs = append(result.structs, &AnnotatedTarget{
 				Target:      target,
@@ -353,12 +351,45 @@ func (s *Scanner) parseTypeDecl(fset *token.FileSet, filePath, packageName strin
 
 		case *ast.InterfaceType:
 			target.Kind = TargetInterface
-			result.interfaces = append(result.interfaces, &AnnotatedTarget{
-				Target:      target,
-				Annotations: annotations,
-			})
+			// 对于接口，还需要检查其方法的注解
+			methodAnnotations := s.parseInterfaceMethodAnnotations(t)
+
+			// 合并接口级注解和方法级注解
+			allAnnotations := append([]*Annotation{}, annotations...)
+			allAnnotations = append(allAnnotations, methodAnnotations...)
+
+			// 如果有任何注解，则添加到结果中
+			if len(allAnnotations) > 0 {
+				result.interfaces = append(result.interfaces, &AnnotatedTarget{
+					Target:      target,
+					Annotations: allAnnotations,
+				})
+			}
 		}
 	}
+}
+
+// parseInterfaceMethodAnnotations 解析接口方法的注解
+func (s *Scanner) parseInterfaceMethodAnnotations(interfaceType *ast.InterfaceType) []*Annotation {
+	var annotations []*Annotation
+
+	if interfaceType.Methods == nil {
+		return annotations
+	}
+
+	for _, method := range interfaceType.Methods.List {
+		if method.Doc == nil {
+			continue
+		}
+
+		methodAnnotations := ParseAnnotations(method.Doc.Text())
+		if len(s.annotationFilter) > 0 {
+			methodAnnotations = FilterByNames(methodAnnotations, s.annotationFilter...)
+		}
+		annotations = append(annotations, methodAnnotations...)
+	}
+
+	return annotations
 }
 
 // parseFuncDecl 解析函数声明
