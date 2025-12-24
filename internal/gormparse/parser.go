@@ -16,6 +16,7 @@ type GormFieldInfo struct {
 	Name           string // 字段名
 	Type           string // 字段类型
 	PkgPath        string // 类型所在包路径
+	PkgAlias       string // 包在源文件中的别名（如果有）
 	ColumnName     string // 数据库列名
 	IsEmbedded     bool   // 是否为嵌入字段
 	SourceType     string // 字段来源类型,为空表示来自结构体本身,否则表示来自嵌入的结构体
@@ -83,6 +84,7 @@ func ParseGormModel(structInfo *structparse.StructInfo) (*GormModelInfo, error) 
 			Name:           field.Name,
 			Type:           field.Type,
 			PkgPath:        field.PkgPath,        // 复制包路径
+			PkgAlias:       field.PkgAlias,       // 复制包别名
 			SourceType:     field.SourceType,     // 复制来源信息
 			Tag:            field.Tag,            // 保存标签信息
 			EmbeddedPrefix: field.EmbeddedPrefix, // 复制 embeddedPrefix

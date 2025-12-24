@@ -20,8 +20,8 @@ func (c *ParseContext) parseStructFieldsWithStackAndImportsAndBaseDir(fieldList 
 	for _, field := range fieldList {
 		fieldType := xast.GetFieldType(field.Type, nil)
 
-		// 提取 PkgPath
-		pkgPath := extractPkgPath(fieldType, imports)
+		// 提取 PkgPath 和 PkgAlias
+		pkgPath, pkgAlias := extractPkgPathAndAlias(fieldType, imports)
 
 		// 获取字段标签
 		var fieldTag string
@@ -41,10 +41,11 @@ func (c *ParseContext) parseStructFieldsWithStackAndImportsAndBaseDir(fieldList 
 			} else {
 				// 不需要扩展的嵌入字段，保持原样
 				fields = append(fields, FieldInfo{
-					Name:    fieldType,
-					Type:    fieldType,
-					PkgPath: pkgPath,
-					Tag:     fieldTag,
+					Name:     fieldType,
+					Type:     fieldType,
+					PkgPath:  pkgPath,
+					PkgAlias: pkgAlias,
+					Tag:      fieldTag,
 				})
 			}
 		} else {
@@ -72,10 +73,11 @@ func (c *ParseContext) parseStructFieldsWithStackAndImportsAndBaseDir(fieldList 
 					fields = append(fields, embeddedFields...)
 				} else {
 					fields = append(fields, FieldInfo{
-						Name:    name.Name,
-						Type:    fieldType,
-						PkgPath: pkgPath,
-						Tag:     fieldTag,
+						Name:     name.Name,
+						Type:     fieldType,
+						PkgPath:  pkgPath,
+						PkgAlias: pkgAlias,
+						Tag:      fieldTag,
 					})
 				}
 			}

@@ -152,10 +152,14 @@ func (g *GsqlGenerator) generateDefinition(targets []*targetInfo) (*gg.Generator
 	gsql := gen.P("github.com/donutnomad/gsql")
 	field := gen.P("github.com/donutnomad/gsql/field")
 
-	// 收集所有 imports
+	// 收集所有 imports（带别名支持）
 	for _, t := range targets {
 		for _, imp := range getGormQueryImports(t.model) {
-			gen.P(imp)
+			if imp.Alias != "" {
+				gen.PAlias(imp.Path, imp.Alias)
+			} else {
+				gen.P(imp.Path)
+			}
 		}
 	}
 

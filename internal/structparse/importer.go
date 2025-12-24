@@ -62,6 +62,12 @@ func (c *ParseContext) extractImports(filename string) (map[string]*ImportInfo, 
 
 // extractPkgPath 从字段类型提取包路径
 func extractPkgPath(fieldType string, imports map[string]*ImportInfo) string {
+	path, _ := extractPkgPathAndAlias(fieldType, imports)
+	return path
+}
+
+// extractPkgPathAndAlias 从字段类型提取包路径和别名
+func extractPkgPathAndAlias(fieldType string, imports map[string]*ImportInfo) (pkgPath string, pkgAlias string) {
 	// 移除修饰符（指针、切片等）
 	cleanType := strings.TrimPrefix(fieldType, "*")
 	cleanType = strings.TrimPrefix(cleanType, "[]")
@@ -71,7 +77,7 @@ func extractPkgPath(fieldType string, imports map[string]*ImportInfo) string {
 	dotIdx := strings.Index(cleanType, ".")
 	if dotIdx <= 0 {
 		// 没有包前缀，是本包类型或内置类型
-		return ""
+		return "", ""
 	}
 
 	// 提取包前缀
@@ -79,11 +85,15 @@ func extractPkgPath(fieldType string, imports map[string]*ImportInfo) string {
 
 	// 从 imports 中查找对应的导入路径
 	if info, exists := imports[pkgPrefix]; exists {
-		return info.ImportPath
+		// 如果使用的前缀与真实包名不同，说明使用了别名
+		if info.Alias != "" && info.Alias != info.PackageName {
+			return info.ImportPath, info.Alias
+		}
+		return info.ImportPath, ""
 	}
 
 	// 未找到，返回空
-	return ""
+	return "", ""
 }
 
 // parseTypePackageAndName 解析类型的包名和结构体名

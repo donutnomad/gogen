@@ -1,7 +1,6 @@
 package gormgen
 
 import (
-	"maps"
 	"slices"
 	"strings"
 
@@ -195,16 +194,30 @@ func generateModelCode(gen *gg.Generator, model *gormparse.GormModelInfo, gsqlPk
 	}
 }
 
+// ImportWithAlias 带别名的 import 信息
+type ImportWithAlias struct {
+	Path  string
+	Alias string
+}
+
 // getGormQueryImports 获取 Query 模式所需的额外 imports
-func getGormQueryImports(model *gormparse.GormModelInfo) []string {
-	imports := make(map[string]bool)
+func getGormQueryImports(model *gormparse.GormModelInfo) []ImportWithAlias {
+	// 使用 map 去重，key 是 path，value 是 alias
+	imports := make(map[string]string)
 
 	for _, f := range model.Fields {
 		// 直接使用 PkgPath（已经正确填充）
 		if f.PkgPath != "" {
-			imports[f.PkgPath] = true
+			// 如果已经存在，保留已有的别名（优先使用第一个遇到的别名）
+			if _, exists := imports[f.PkgPath]; !exists {
+				imports[f.PkgPath] = f.PkgAlias
+			}
 		}
 	}
 
-	return slices.Collect(maps.Keys(imports))
+	result := make([]ImportWithAlias, 0, len(imports))
+	for path, alias := range imports {
+		result = append(result, ImportWithAlias{Path: path, Alias: alias})
+	}
+	return result
 }
