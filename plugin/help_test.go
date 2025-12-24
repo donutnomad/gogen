@@ -55,8 +55,8 @@ func TestFormatHelpText(t *testing.T) {
 		"Optional parameter",
 		"示例:",
 		"@TestAnnotation",
-		"output={{FileName}}_query.go",
-		"output={{StructName}}_query.go",
+		"output=$FILE_query.go",
+		"output=$PACKAGE_query.go",
 	}
 
 	for _, expected := range expectedContents {

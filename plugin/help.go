@@ -66,8 +66,8 @@ func FormatHelpText(registry *Registry) string {
 		// 生成用法示例
 		sb.WriteString("    示例:\n")
 		sb.WriteString(fmt.Sprintf("      @%s\n", mainAnnotation))
-		sb.WriteString(fmt.Sprintf("      @%s(output={{FileName}}_query.go)\n", mainAnnotation))
-		sb.WriteString(fmt.Sprintf("      @%s(output={{StructName}}_query.go)\n", mainAnnotation))
+		sb.WriteString(fmt.Sprintf("      @%s(output=$FILE_query.go)\n", mainAnnotation))
+		sb.WriteString(fmt.Sprintf("      @%s(output=$PACKAGE_query.go)\n", mainAnnotation))
 
 		// 单个参数示例（如果有）
 		if len(paramDefs) > 0 {

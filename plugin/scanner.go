@@ -513,8 +513,8 @@ var goGenRegex = regexp.MustCompile(`go:gogen:\s*(.*)`)
 // parseFileConfig 解析文件级 go:gogen: 配置
 // 示例:
 //
-//	// go:gogen: -output `{{FileName}}_query`
-//	// go:gogen: plugin:gsql -output `{{FileName}}_query` plugin:setter -output `0api_generated`
+//	// go:gogen: -output `$FILE_query`
+//	// go:gogen: plugin:gsql -output `$FILE_query` plugin:setter -output `0api_generated`
 func (s *Scanner) parseFileConfig(file *ast.File, filePath string) *FileConfig {
 	var gogenLines []string
 

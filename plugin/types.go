@@ -147,8 +147,8 @@ type GenerateResult struct {
 // 通过 // go:gogen: 注释定义
 // 示例:
 //
-//	// go:gogen: -output `{{FileName}}_query`
-//	// go:gogen: plugin:gsql -output `{{FileName}}_query` plugin:setter -output `0api_generated`
+//	// go:gogen: -output `$FILE_query`
+//	// go:gogen: plugin:gsql -output `$FILE_query` plugin:setter -output `0api_generated`
 type FileConfig struct {
 	FilePath string // 文件路径
 
