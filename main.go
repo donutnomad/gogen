@@ -28,6 +28,7 @@ var (
 	help     = flag.Bool("h", false, "显示帮助信息")
 	output   = flag.String("output", "generate.go", "默认输出路径（支持模板变量 $FILE, $PACKAGE）")
 	noOutput = flag.Bool("no-output", false, "禁用默认输出（每个生成器输出到独立文件）")
+	async    = flag.Bool("async", true, "异步执行生成器（默认 true）")
 )
 
 func main() {
@@ -97,6 +98,7 @@ func runGen(args []string) {
 		Patterns: patterns,
 		Verbose:  *verbose,
 		Output:   outputPath,
+		Async:    *async,
 	}
 
 	stats, err := plugin.RunWithOptionsAndStats(ctx, opts)

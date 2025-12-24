@@ -151,6 +151,7 @@ func (g *MockGenerator) generateMockCode(outputPath string, targets []*mockTarge
 		IncludeInterfaces: interfaceNames,
 	}
 
+	// TODO: 耗时比较严重
 	pkg, err := sourceModeWithOptions(opts)
 	if err != nil {
 		return nil, fmt.Errorf("解析源文件失败: %w", err)

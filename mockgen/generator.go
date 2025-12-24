@@ -137,6 +137,7 @@ func (g *generator) Generate(pkg *model.Package, outputPkgName string, outputPac
 	}
 	sort.Strings(sortedPaths)
 
+	// TODO: 耗时严重
 	packagesName := createPackageMap(sortedPaths)
 
 	definedImports := make(map[string]string, len(im))

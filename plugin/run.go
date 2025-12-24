@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/donutnomad/gg"
@@ -38,6 +39,7 @@ type RunOptions struct {
 	Patterns []string
 	Verbose  bool
 	Output   string // 命令行指定的默认输出路径（最低优先级）
+	Async    bool   // 是否异步执行生成器，默认 true
 }
 
 // RunStats 运行统计信息
@@ -121,7 +123,7 @@ func RunWithOptionsAndStats(ctx context.Context, opts *RunOptions) (*RunStats, e
 	// key: 输出文件路径, value: 生成器名称列表（按优先级顺序）
 	fileGenNames := make(map[string][]string)
 
-	// 执行每个生成器
+	// 先串行解析所有目标的参数（避免并发修改共享数据）
 	for _, genName := range genNames {
 		targets := dispatch[genName]
 		gen, ok := registry.GetByName(genName)
@@ -129,11 +131,6 @@ func RunWithOptionsAndStats(ctx context.Context, opts *RunOptions) (*RunStats, e
 			continue
 		}
 
-		if opts.Verbose {
-			fmt.Printf("执行生成器: %s (开始处理 %d 个目标)\n", genName, len(targets))
-		}
-
-		// 为每个目标解析参数
 		paramDefs := gen.ParamDefs()
 		for _, target := range targets {
 			// 创建参数结构体实例
@@ -172,6 +169,26 @@ func RunWithOptionsAndStats(ctx context.Context, opts *RunOptions) (*RunStats, e
 				target.ParsedParams = val.Elem().Interface()
 			}
 		}
+	}
+
+	// genResultItem 存储单个生成器的执行结果
+	type genResultItem struct {
+		genName string
+		result  *GenerateResult
+		err     error
+	}
+
+	// 执行生成器的函数
+	executeGenerator := func(genName string) genResultItem {
+		targets := dispatch[genName]
+		gen, ok := registry.GetByName(genName)
+		if !ok {
+			return genResultItem{genName: genName}
+		}
+
+		if opts.Verbose {
+			fmt.Printf("执行生成器: %s (开始处理 %d 个目标)\n", genName, len(targets))
+		}
 
 		genCtx := &GenerateContext{
 			Targets:       targets,
@@ -180,13 +197,66 @@ func RunWithOptionsAndStats(ctx context.Context, opts *RunOptions) (*RunStats, e
 			Verbose:       opts.Verbose,
 		}
 
-		var nt1 = time.Now()
+		nt1 := time.Now()
 		genResult, err := gen.Generate(genCtx)
-		if err != nil {
-			return stats, fmt.Errorf("生成器 %s 执行失败: %w", genName, err)
-		}
 		if opts.Verbose {
 			fmt.Printf("执行生成器: %s (耗时: %v)\n", genName, time.Since(nt1))
+		}
+
+		return genResultItem{genName: genName, result: genResult, err: err}
+	}
+
+	// 收集结果
+	genResults := make(map[string]*GenerateResult)
+
+	if opts.Async {
+		// 异步执行每个生成器
+		resultChan := make(chan genResultItem, len(genNames))
+		var wg sync.WaitGroup
+
+		for _, genName := range genNames {
+			wg.Add(1)
+			go func(genName string) {
+				defer wg.Done()
+				resultChan <- executeGenerator(genName)
+			}(genName)
+		}
+
+		// 等待所有生成器完成
+		go func() {
+			wg.Wait()
+			close(resultChan)
+		}()
+
+		// 收集结果
+		for item := range resultChan {
+			if item.err != nil {
+				allErrors = append(allErrors, fmt.Errorf("生成器 %s 执行失败: %w", item.genName, item.err))
+				continue
+			}
+			if item.result != nil {
+				genResults[item.genName] = item.result
+			}
+		}
+	} else {
+		// 同步执行每个生成器
+		for _, genName := range genNames {
+			item := executeGenerator(genName)
+			if item.err != nil {
+				allErrors = append(allErrors, fmt.Errorf("生成器 %s 执行失败: %w", item.genName, item.err))
+				continue
+			}
+			if item.result != nil {
+				genResults[item.genName] = item.result
+			}
+		}
+	}
+
+	// 按优先级顺序处理结果
+	for _, genName := range genNames {
+		genResult, ok := genResults[genName]
+		if !ok {
+			continue
 		}
 
 		// 收集 gg 定义，按文件分组

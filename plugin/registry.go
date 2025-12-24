@@ -138,6 +138,7 @@ func (r *Registry) IsRegistered(annotation string) bool {
 
 // DispatchTargets 将扫描结果分发给对应的生成器
 // 返回 map[生成器名] -> 该生成器需要处理的目标
+// 注意：为每个生成器创建独立的 AnnotatedTarget 副本，避免 ParsedParams 冲突
 func (r *Registry) DispatchTargets(result *ScanResult) map[string][]*AnnotatedTarget {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -149,7 +150,13 @@ func (r *Registry) DispatchTargets(result *ScanResult) map[string][]*AnnotatedTa
 			if gen, ok := r.annotations[ann.Name]; ok {
 				// 检查目标类型是否被支持
 				if r.isTargetSupported(gen, target.Target.Kind) {
-					dispatch[gen.Name()] = append(dispatch[gen.Name()], target)
+					// 创建副本，避免多个生成器共享同一个 ParsedParams
+					targetCopy := &AnnotatedTarget{
+						Target:      target.Target,
+						Annotations: target.Annotations,
+						// ParsedParams 留空，由各生成器独立设置
+					}
+					dispatch[gen.Name()] = append(dispatch[gen.Name()], targetCopy)
 				}
 			}
 		}
