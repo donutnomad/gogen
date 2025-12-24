@@ -29,6 +29,7 @@ require (
 	github.com/donutnomad/solana-web3 v0.0.0-20250313072913-99732fd085a1 // indirect
 	github.com/ethereum/go-ethereum v1.16.7 // indirect
 	github.com/fatih/color v1.16.0 // indirect
+	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.10 // indirect
 	github.com/gagliardetto/binary v0.8.0 // indirect

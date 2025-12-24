@@ -53,6 +53,8 @@ func main() {
 	switch cmd {
 	case "gen":
 		runGen(args[1:])
+	case "dev":
+		runDev(args[1:])
 	default:
 		// 不是子命令，当作路径参数处理，执行 gen
 		runGen(args)
@@ -120,6 +122,11 @@ func usage() {
 用法:
   gogen [选项] [路径...]
   gogen gen [选项] [路径...]
+  gogen dev [选项] [路径...]
+
+命令:
+  gen     执行代码生成（默认）
+  dev     启动开发模式，监听文件变动自动生成
 
 路径:
   支持 Go 包路径模式，如:
@@ -148,5 +155,7 @@ func usage() {
   gogen -v ./models/...                     详细模式扫描 models 目录
   gogen -output $FILE_gen ./...             指定输出文件名
   gogen -no-output ./...                    每个生成器输出到独立文件
+  gogen dev ./...                           开发模式，监听文件变动
+  gogen -v dev ./models/...                 开发模式，详细输出
 `)
 }

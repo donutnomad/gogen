@@ -116,7 +116,7 @@ func (s *Scanner) quickMatch(ctx context.Context, files []string) ([]string, err
 					if !ok {
 						return
 					}
-					matched, err := s.quickMatchFile(file)
+					matched, err := s.QuickMatchFile(file)
 					resultCh <- matchResult{file: file, matched: matched, err: err}
 				}
 			}
@@ -155,8 +155,9 @@ func (s *Scanner) quickMatch(ctx context.Context, files []string) ([]string, err
 	return matchedFiles, nil
 }
 
-// quickMatchFile 快速检查文件是否包含注解
-func (s *Scanner) quickMatchFile(filePath string) (bool, error) {
+// QuickMatchFile 快速检查文件是否包含注解
+// 用于 dev 模式判断文件是否需要触发代码生成
+func (s *Scanner) QuickMatchFile(filePath string) (bool, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
 		return false, err
