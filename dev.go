@@ -165,12 +165,21 @@ func (r *devRunner) watchLoop(ctx context.Context) error {
 
 // handleEvent 处理文件事件
 func (r *devRunner) handleEvent(event fsnotify.Event) {
+	filePath := event.Name
+
+	// 处理删除事件：从监听列表中移除已删除的目录
+	if event.Op&fsnotify.Remove != 0 {
+		// fsnotify 会自动移除已删除的目录，但我们记录日志
+		if r.opts.Verbose {
+			fmt.Printf("检测到删除: %s\n", filePath)
+		}
+		return
+	}
+
 	// 只关注 Write 和 Create 事件
 	if event.Op&(fsnotify.Write|fsnotify.Create) == 0 {
 		return
 	}
-
-	filePath := event.Name
 
 	// 检查是否是新建目录，如果是则添加到监听列表
 	if event.Op&fsnotify.Create != 0 {
