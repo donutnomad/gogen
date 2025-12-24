@@ -5,12 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/donutnomad/gogen/gormgen"
 	"github.com/donutnomad/gogen/mockgen"
 	"github.com/donutnomad/gogen/plugin"
 	"github.com/donutnomad/gogen/settergen"
 	"github.com/donutnomad/gogen/slicegen"
+	"github.com/samber/lo"
 )
 
 func init() {
@@ -73,7 +75,10 @@ func runGen(args []string) {
 	if *verbose {
 		fmt.Printf("已注册 %d 个生成器:\n", len(registry.Generators()))
 		for _, gen := range registry.Generators() {
-			fmt.Printf("  - %s (注解: %v)\n", gen.Name(), gen.Annotations())
+			anns := lo.Map(gen.Annotations(), func(item string, index int) string {
+				return "@" + item
+			})
+			fmt.Printf("  - %s (%s)\n", gen.Name(), strings.Join(anns, ","))
 		}
 		fmt.Println()
 	}
