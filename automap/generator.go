@@ -47,8 +47,8 @@ func NewGenerator2(result *ParseResult2, genFuncName string) *Generator2 {
 }
 
 // Generate 生成代码
-// 返回: (带imports的完整代码, 纯函数代码)
-func (g *Generator2) Generate() (string, string) {
+// 返回: (带imports的完整代码, 纯函数代码, imports列表)
+func (g *Generator2) Generate() (string, string, []string) {
 	var funcBuilder strings.Builder
 
 	// 生成函数签名
@@ -69,15 +69,17 @@ func (g *Generator2) Generate() (string, string) {
 		funcCode = missingComment + funcCode
 	}
 
+	// 收集 imports 列表
+	importList := make([]string, 0, len(g.imports))
+	for imp := range g.imports {
+		importList = append(importList, imp)
+	}
+	sort.Strings(importList)
+
 	// 生成带 imports 的完整代码
 	var fullBuilder strings.Builder
 	if len(g.imports) > 0 {
 		fullBuilder.WriteString("import (\n")
-		importList := make([]string, 0, len(g.imports))
-		for imp := range g.imports {
-			importList = append(importList, imp)
-		}
-		sort.Strings(importList)
 		for _, imp := range importList {
 			fullBuilder.WriteString(fmt.Sprintf("\t\"%s\"\n", imp))
 		}
@@ -85,7 +87,7 @@ func (g *Generator2) Generate() (string, string) {
 	}
 	fullBuilder.WriteString(funcCode)
 
-	return fullBuilder.String(), funcCode
+	return fullBuilder.String(), funcCode, importList
 }
 
 // generateFunctionSignature 生成函数签名
@@ -364,29 +366,29 @@ func (g *Generator2) validateFieldCoverage(generatedCode string) string {
 // receiverType: 接收者类型名（如 "ListingPO"）
 // funcName: 原函数名（如 "ToPO"）
 // genFuncName: 生成的函数名（如 "ToPatch"）
-func Generate2(filePath, receiverType, funcName, genFuncName string) (string, string, error) {
+func Generate2(filePath, receiverType, funcName, genFuncName string) (string, string, []string, error) {
 	// 解析映射关系
 	result, err := Parse(filePath, receiverType, funcName)
 	if err != nil {
-		return "", "", fmt.Errorf("解析失败: %w", err)
+		return "", "", nil, fmt.Errorf("解析失败: %w", err)
 	}
 
 	// 生成代码
 	generator := NewGenerator2(result, genFuncName)
-	fullCode, funcCode := generator.Generate()
+	fullCode, funcCode, imports := generator.Generate()
 
-	return fullCode, funcCode, nil
+	return fullCode, funcCode, imports, nil
 }
 
 // Generate2WithOptions 使用新方案生成代码（兼容旧 API 调用方式）
 // funcNameWithReceiver: "ReceiverType.FuncName" 格式，如 "ListingPO.ToPO"
 // genFuncName: 生成的函数名（如 "ToPatch"）
 // options: 选项，支持 WithFileContext
-func Generate2WithOptions(funcNameWithReceiver, genFuncName string, options ...Option) (string, string, error) {
+func Generate2WithOptions(funcNameWithReceiver, genFuncName string, options ...Option) (string, string, []string, error) {
 	// 解析函数名格式
 	parts := strings.Split(funcNameWithReceiver, ".")
 	if len(parts) != 2 {
-		return "", "", fmt.Errorf("无效的函数名格式，期望 'ReceiverType.FuncName'，得到 '%s'", funcNameWithReceiver)
+		return "", "", nil, fmt.Errorf("无效的函数名格式，期望 'ReceiverType.FuncName'，得到 '%s'", funcNameWithReceiver)
 	}
 	receiverType := parts[0]
 	funcName := parts[1]
@@ -399,7 +401,7 @@ func Generate2WithOptions(funcNameWithReceiver, genFuncName string, options ...O
 		}
 	}
 	if filePath == "" {
-		return "", "", fmt.Errorf("需要通过 WithFileContext 指定文件路径")
+		return "", "", nil, fmt.Errorf("需要通过 WithFileContext 指定文件路径")
 	}
 
 	return Generate2(filePath, receiverType, funcName, genFuncName)

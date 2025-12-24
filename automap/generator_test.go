@@ -9,7 +9,7 @@ import (
 
 // TestGenerate2SimpleOneToOne 测试简单一对一映射的代码生成
 func TestGenerate2SimpleOneToOne(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "SimpleUserPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "SimpleUserPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -51,7 +51,7 @@ func TestGenerate2SimpleOneToOne(t *testing.T) {
 
 // TestGenerate2Embedded 测试嵌入字段映射的代码生成
 func TestGenerate2Embedded(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "EmbeddedUserPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "EmbeddedUserPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -75,7 +75,7 @@ func TestGenerate2Embedded(t *testing.T) {
 
 // TestGenerate2ManyToOneJSON 测试多对一(JSON)映射的代码生成
 func TestGenerate2ManyToOneJSON(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "ProfilePO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "ProfilePO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -106,7 +106,7 @@ func TestGenerate2ManyToOneJSON(t *testing.T) {
 
 // TestGenerate2OneToMany 测试一对多映射的代码生成
 func TestGenerate2OneToMany(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "CompanyPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "CompanyPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -131,7 +131,7 @@ func TestGenerate2OneToMany(t *testing.T) {
 
 // TestGenerate2MethodCall 测试方法调用映射的代码生成
 func TestGenerate2MethodCall(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "CustomerPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "CustomerPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -153,7 +153,7 @@ func TestGenerate2MethodCall(t *testing.T) {
 
 // TestGenerate2NestedJSON 测试嵌套JSON映射的代码生成
 func TestGenerate2NestedJSON(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "ArticlePO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "ArticlePO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -179,7 +179,7 @@ func TestGenerate2NestedJSON(t *testing.T) {
 
 // TestGenerate2Mixed 测试混合映射的代码生成
 func TestGenerate2Mixed(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "AccountPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "AccountPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -203,7 +203,7 @@ func TestGenerate2Mixed(t *testing.T) {
 
 // TestGenerate2CrossPackage 测试跨包类型引用的代码生成
 func TestGenerate2CrossPackage(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/external_models.go", "ExternalUserPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/external_models.go", "ExternalUserPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -238,7 +238,7 @@ func TestGenerate2CrossPackage(t *testing.T) {
 
 // TestGenerate2ExternalEmbedded 测试外部包嵌入类型的代码生成
 func TestGenerate2ExternalEmbedded(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/external_models.go", "ApprovalPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/external_models.go", "ApprovalPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -273,7 +273,7 @@ func TestGenerate2ExternalEmbedded(t *testing.T) {
 
 // TestGenerate2MissingFields 测试缺失字段注释的代码生成
 func TestGenerate2MissingFields(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "PartialUserPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "PartialUserPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -308,7 +308,7 @@ func TestGenerate2MissingFields(t *testing.T) {
 
 // TestGenerate2GormModel 测试使用 gorm.io/gorm.Model 外部包嵌入类型的代码生成
 func TestGenerate2GormModel(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "GormUserPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "GormUserPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -355,7 +355,7 @@ func TestGenerate2GormModel(t *testing.T) {
 // TestGenerate2CrossFile 测试跨文件场景（结构体和ToPO函数在不同文件中）
 func TestGenerate2CrossFile(t *testing.T) {
 	// 注意：这里传入结构体所在的文件，ToPO函数在另一个文件 cross_file_mapper.go 中
-	fullCode, funcCode, err := automap.Generate2("testdata/cross_file_po.go", "CrossFilePO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/cross_file_po.go", "CrossFilePO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -391,7 +391,7 @@ func TestGenerate2CrossFile(t *testing.T) {
 func TestGenerate2CrossFileFromMapperFile(t *testing.T) {
 	// 注意：这里传入的是ToPO方法所在的文件，而结构体定义在 cross_file_po.go 中
 	// 这模拟了用户的实际场景：gormgen使用method.FilePath（方法所在文件）来调用automap
-	fullCode, funcCode, err := automap.Generate2("testdata/cross_file_mapper.go", "CrossFilePO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/cross_file_mapper.go", "CrossFilePO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -426,7 +426,7 @@ func TestGenerate2CrossFileFromMapperFile(t *testing.T) {
 // 验证当从方法文件解析时，能正确计算并生成Missing fields注释
 func TestGenerate2CrossFileWithMissingFields(t *testing.T) {
 	// 传入方法所在的文件
-	fullCode, funcCode, err := automap.Generate2("testdata/cross_file_mapper.go", "CrossFilePO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/cross_file_mapper.go", "CrossFilePO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -445,7 +445,7 @@ func TestGenerate2CrossFileWithMissingFields(t *testing.T) {
 // TestGenerate2CustomJSONTag 测试 JSON tag 与 Go 字段名不同的情况
 // 验证生成代码使用真实的 Go 字段名，而不是从 JSON tag 推断
 func TestGenerate2CustomJSONTag(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "CustomTagPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "CustomTagPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -499,7 +499,7 @@ func TestGenerate2CustomJSONTag(t *testing.T) {
 
 // TestGenerate2JSONFieldSorting 测试 JSON 字段按字母顺序排序
 func TestGenerate2JSONFieldSorting(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "SortTestPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "SortTestPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -530,7 +530,7 @@ func TestGenerate2JSONFieldSorting(t *testing.T) {
 
 // TestGenerate2JSONNestedSorting 测试嵌套 JSON 字段的分组和排序
 func TestGenerate2JSONNestedSorting(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "CustomTagPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "CustomTagPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -569,7 +569,7 @@ func TestGenerate2JSONNestedSorting(t *testing.T) {
 // TestGenerate2PointerDereference 测试指针解引用
 // 验证能正确解析 *d.Field 的情况
 func TestGenerate2PointerDereference(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "PointerPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "PointerPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -635,7 +635,7 @@ func TestParsePointerDereference(t *testing.T) {
 // TestGenerate2FieldOrdering 测试字段顺序
 // 验证生成的 ToPatch 方法字段顺序与 PO 结构体定义顺序一致
 func TestGenerate2FieldOrdering(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "FieldOrderPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "FieldOrderPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -729,7 +729,7 @@ func TestGenerate2FieldOrdering(t *testing.T) {
 
 // TestGenerate2EmbeddedOneToMany 测试 EmbeddedOneToMany 映射的代码生成（无前缀）
 func TestGenerate2EmbeddedOneToMany(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "EmbeddedOneToManyPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "EmbeddedOneToManyPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -769,7 +769,7 @@ func TestGenerate2EmbeddedOneToMany(t *testing.T) {
 
 // TestGenerate2EmbeddedOneToManyWithPrefix 测试 EmbeddedOneToMany 映射的代码生成（带前缀）
 func TestGenerate2EmbeddedOneToManyWithPrefix(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "EmbeddedPrefixPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "EmbeddedPrefixPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -810,7 +810,7 @@ func TestGenerate2EmbeddedOneToManyWithPrefix(t *testing.T) {
 // TestGenerate2ExternalPackageEmbedded 测试外部包 EmbeddedOneToMany 映射的代码生成
 // 使用 caip10.AccountIDColumnsCompact 作为嵌入字段类型
 func TestGenerate2ExternalPackageEmbedded(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "ExternalEmbeddedPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "ExternalEmbeddedPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -853,7 +853,7 @@ func TestGenerate2ExternalPackageEmbedded(t *testing.T) {
 // TestGenerate2ExternalPackageEmbeddedNoPrefix 测试外部包 EmbeddedOneToMany 映射的代码生成（无前缀）
 // 关键bug修复验证：当嵌入字段无前缀时，不应该错误地包含其他嵌入类型的字段
 func TestGenerate2ExternalPackageEmbeddedNoPrefix(t *testing.T) {
-	fullCode, funcCode, err := automap.Generate2("testdata/models.go", "ExternalNoPrefixPO", "ToPO", "ToPatch")
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "ExternalNoPrefixPO", "ToPO", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}
@@ -927,7 +927,7 @@ func TestGenerate2ExternalPackageEmbeddedNoPrefix(t *testing.T) {
 
 // 测试映射关系为空时候的代码
 func TestGenerate2Empty(t *testing.T) {
-	_, funcCode, err := automap.Generate2("testdata/models.go", "ExternalNoPrefixPO", "ToPO2", "ToPatch")
+	_, funcCode, _, err := automap.Generate2("testdata/models.go", "ExternalNoPrefixPO", "ToPO2", "ToPatch")
 	if err != nil {
 		t.Fatalf("Generate2 failed: %v", err)
 	}

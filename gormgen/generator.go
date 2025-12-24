@@ -2,6 +2,7 @@ package gormgen
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/donutnomad/gg"
 	"github.com/donutnomad/gogen/internal/gormparse"
@@ -34,6 +35,7 @@ func NewGsqlGenerator() *GsqlGenerator {
 
 // Generate 执行代码生成
 func (g *GsqlGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.GenerateResult, error) {
+	totalStart := time.Now()
 	result := plugin.NewGenerateResult()
 
 	if len(ctx.Targets) == 0 {
@@ -43,6 +45,8 @@ func (g *GsqlGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.GenerateR
 	// 按输出文件分组处理
 	// key: 输出路径, value: 待处理的目标列表
 	fileTargets := make(map[string][]*targetInfo)
+
+	var parseStructTotal, parseGormTotal time.Duration
 
 	for _, at := range ctx.Targets {
 		ann := plugin.GetAnnotation(at.Annotations, "Gsql")
@@ -62,14 +66,20 @@ func (g *GsqlGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.GenerateR
 		}
 
 		// 解析结构体
+		parseStructStart := time.Now()
 		structInfo, err := structparse.ParseStruct(at.Target.FilePath, at.Target.Name)
+		parseStructDur := time.Since(parseStructStart)
+		parseStructTotal += parseStructDur
 		if err != nil {
 			result.AddError(fmt.Errorf("解析结构体 %s 失败: %w", at.Target.Name, err))
 			continue
 		}
 
 		// 转换为 GORM 模型（内部会推导表名）
+		parseGormStart := time.Now()
 		gormModel, err := gormparse.ParseGormModel(structInfo)
+		parseGormDur := time.Since(parseGormStart)
+		parseGormTotal += parseGormDur
 		if err != nil {
 			result.AddError(fmt.Errorf("解析 GORM 模型失败: %w", err))
 			continue
@@ -87,18 +97,36 @@ func (g *GsqlGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.GenerateR
 		})
 
 		if ctx.Verbose {
-			fmt.Printf("[gormgen] 处理结构体 %s -> %s\n", at.Target.Name, outputPath)
+			fmt.Printf("[gormgen] 处理结构体 %s -> %s (结构体解析: %v, GORM解析: %v)\n",
+				at.Target.Name, outputPath, parseStructDur, parseGormDur)
 		}
 	}
 
 	// 为每个输出文件生成 gg 定义
+	var generateTotal time.Duration
 	for outputPath, targets := range fileTargets {
+		genStart := time.Now()
 		gen, err := g.generateDefinition(targets)
+		genDur := time.Since(genStart)
+		generateTotal += genDur
 		if err != nil {
 			result.AddError(fmt.Errorf("生成 %s 失败: %w", outputPath, err))
 			continue
 		}
 		result.AddDefinition(outputPath, gen)
+
+		if ctx.Verbose {
+			fmt.Printf("[gormgen] 生成定义 %s (耗时: %v)\n", outputPath, genDur)
+		}
+	}
+
+	if ctx.Verbose {
+		totalDur := time.Since(totalStart)
+		fmt.Printf("[gormgen] 耗时统计:\n")
+		fmt.Printf("  - 结构体解析总耗时: %v\n", parseStructTotal)
+		fmt.Printf("  - GORM模型解析总耗时: %v\n", parseGormTotal)
+		fmt.Printf("  - 代码生成总耗时: %v\n", generateTotal)
+		fmt.Printf("  - 总耗时: %v\n", totalDur)
 	}
 
 	return result, nil

@@ -1,6 +1,8 @@
 package settergen
 
 import (
+	"maps"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -155,4 +157,22 @@ func safeParamName(fieldName string) string {
 		return paramName + "Val"
 	}
 	return paramName
+}
+
+// getSetterImports 获取 setter 模式所需的额外 imports
+func getSetterImports(model *gormparse.GormModelInfo) []string {
+	imports := make(map[string]bool)
+
+	for _, f := range model.Fields {
+		// 跳过 patch 字段本身
+		if strings.ToLower(f.Name) == "patch" {
+			continue
+		}
+		// 直接使用 PkgPath（已经正确填充）
+		if f.PkgPath != "" {
+			imports[f.PkgPath] = true
+		}
+	}
+
+	return slices.Collect(maps.Keys(imports))
 }
