@@ -61,7 +61,7 @@ func runDev(args []string) {
 		Verbose:  *verbose,
 		Output:   outputPath,
 		Async:    *async,
-		Debounce: 2 * time.Second,
+		Debounce: 1 * time.Second,
 	}
 
 	if err := dev(opts); err != nil {
