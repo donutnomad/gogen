@@ -155,7 +155,7 @@ func (s *Scanner) quickMatch(ctx context.Context, files []string) ([]string, err
 	return matchedFiles, nil
 }
 
-// QuickMatchFile 快速检查文件是否包含注解
+// QuickMatchFile 快速检查文件是否包含注解或 go:gogen 配置
 // 用于 dev 模式判断文件是否需要触发代码生成
 func (s *Scanner) QuickMatchFile(filePath string) (bool, error) {
 	file, err := os.Open(filePath)
@@ -171,6 +171,11 @@ func (s *Scanner) QuickMatchFile(filePath string) (bool, error) {
 		trimmed := strings.TrimSpace(line)
 		if !strings.HasPrefix(trimmed, "//") && !strings.HasPrefix(trimmed, "/*") {
 			continue
+		}
+
+		// 检查 go:gogen: 配置（支持 //go:gogen: 和 // go:gogen:）
+		if strings.Contains(trimmed, "go:gogen:") {
+			return true, nil
 		}
 
 		// 查找 @xxx 模式
@@ -202,7 +207,7 @@ func (s *Scanner) parseFiles(ctx context.Context, files []string) (*ScanResult, 
 		interfaces []*AnnotatedTarget
 		funcs      []*AnnotatedTarget
 		methods    []*AnnotatedTarget
-		fileConfig *FileConfig
+		pkgConfig  *PackageConfig
 		err        error
 	}
 
@@ -223,8 +228,15 @@ func (s *Scanner) parseFiles(ctx context.Context, files []string) (*ScanResult, 
 					if !ok {
 						return
 					}
-					result := s.parseFile(file)
-					resultCh <- result
+					r := s.parseFile(file)
+					resultCh <- parseResult{
+						structs:    r.structs,
+						interfaces: r.interfaces,
+						funcs:      r.funcs,
+						methods:    r.methods,
+						pkgConfig:  r.pkgConfig,
+						err:        r.err,
+					}
 				}
 			}
 		}()
@@ -250,7 +262,7 @@ func (s *Scanner) parseFiles(ctx context.Context, files []string) (*ScanResult, 
 
 	// 收集结果
 	result := &ScanResult{
-		FileConfigs: make(map[string]*FileConfig),
+		PackageConfigs: make(map[string]*PackageConfig),
 	}
 	for r := range resultCh {
 		if r.err != nil {
@@ -260,8 +272,26 @@ func (s *Scanner) parseFiles(ctx context.Context, files []string) (*ScanResult, 
 		result.Interfaces = append(result.Interfaces, r.interfaces...)
 		result.Funcs = append(result.Funcs, r.funcs...)
 		result.Methods = append(result.Methods, r.methods...)
-		if r.fileConfig != nil {
-			result.FileConfigs[r.fileConfig.FilePath] = r.fileConfig
+		if r.pkgConfig != nil {
+			pkgDir := r.pkgConfig.PackageDir
+			// 如果该包已有配置，检查是否冲突
+			if existing, ok := result.PackageConfigs[pkgDir]; ok {
+				// 合并配置：如果新配置有值，覆盖旧配置
+				if r.pkgConfig.DefaultOutput != "" {
+					if existing.DefaultOutput != "" && existing.DefaultOutput != r.pkgConfig.DefaultOutput {
+						fmt.Printf("警告: 包 %s 中存在多个不同的 go:gogen 默认输出配置，使用后发现的配置\n", pkgDir)
+					}
+					existing.DefaultOutput = r.pkgConfig.DefaultOutput
+				}
+				for k, v := range r.pkgConfig.PluginOutputs {
+					if existingV, ok := existing.PluginOutputs[k]; ok && existingV != v {
+						fmt.Printf("警告: 包 %s 中插件 %s 存在多个不同的输出配置，使用后发现的配置\n", pkgDir, k)
+					}
+					existing.PluginOutputs[k] = v
+				}
+			} else {
+				result.PackageConfigs[pkgDir] = r.pkgConfig
+			}
 		}
 	}
 
@@ -274,7 +304,7 @@ func (s *Scanner) parseFile(filePath string) (result struct {
 	interfaces []*AnnotatedTarget
 	funcs      []*AnnotatedTarget
 	methods    []*AnnotatedTarget
-	fileConfig *FileConfig
+	pkgConfig  *PackageConfig
 	err        error
 }) {
 	fset := token.NewFileSet()
@@ -286,8 +316,8 @@ func (s *Scanner) parseFile(filePath string) (result struct {
 
 	packageName := file.Name.Name
 
-	// 解析文件级 go:gogen: 配置
-	result.fileConfig = s.parseFileConfig(file, filePath)
+	// 解析包级 go:gogen: 配置
+	result.pkgConfig = s.parsePackageConfig(file, filePath)
 
 	for _, decl := range file.Decls {
 		switch d := decl.(type) {
@@ -309,7 +339,7 @@ func (s *Scanner) parseTypeDecl(fset *token.FileSet, filePath, packageName strin
 	interfaces []*AnnotatedTarget
 	funcs      []*AnnotatedTarget
 	methods    []*AnnotatedTarget
-	fileConfig *FileConfig
+	pkgConfig  *PackageConfig
 	err        error
 }) {
 	var docText string
@@ -398,7 +428,7 @@ func (s *Scanner) parseFuncDecl(fset *token.FileSet, filePath, packageName strin
 	interfaces []*AnnotatedTarget
 	funcs      []*AnnotatedTarget
 	methods    []*AnnotatedTarget
-	fileConfig *FileConfig
+	pkgConfig  *PackageConfig
 	err        error
 }) {
 	var docText string
@@ -540,14 +570,15 @@ func ScanWithFilter(ctx context.Context, annotations []string, patterns ...strin
 }
 
 // goGenRegex 匹配 go:gogen: 指令
+// 支持两种格式：//go:gogen: 和 // go:gogen:
 var goGenRegex = regexp.MustCompile(`go:gogen:\s*(.*)`)
 
-// parseFileConfig 解析文件级 go:gogen: 配置
-// 示例:
+// parsePackageConfig 解析包级 go:gogen: 配置
+// 支持格式:
 //
-//	// go:gogen: -output `$FILE_query`
+//	//go:gogen: -output `$FILE_query`
 //	// go:gogen: plugin:gsql -output `$FILE_query` plugin:setter -output `0api_generated`
-func (s *Scanner) parseFileConfig(file *ast.File, filePath string) *FileConfig {
+func (s *Scanner) parsePackageConfig(file *ast.File, filePath string) *PackageConfig {
 	var gogenLines []string
 
 	// 收集所有 go:gogen: 注释
@@ -577,14 +608,21 @@ func (s *Scanner) parseFileConfig(file *ast.File, filePath string) *FileConfig {
 	return parseGogenLine(gogenLines[0], filePath)
 }
 
+// parseFileConfig 解析文件级 go:gogen: 配置（已废弃）
+// Deprecated: 请使用 parsePackageConfig
+func (s *Scanner) parseFileConfig(file *ast.File, filePath string) *PackageConfig {
+	return s.parsePackageConfig(file, filePath)
+}
+
 // parseGogenLine 解析单行 go:gogen: 配置
 // 格式:
 //
 //	-output `xxx`                                    // 默认输出
 //	plugin:gsql -output `xxx` plugin:setter -output `yyy`  // 插件特定输出
-func parseGogenLine(line string, filePath string) *FileConfig {
-	config := &FileConfig{
-		FilePath:      filePath,
+func parseGogenLine(line string, filePath string) *PackageConfig {
+	pkgDir := filepath.Dir(filePath)
+	config := &PackageConfig{
+		PackageDir:    pkgDir,
 		PluginOutputs: make(map[string]string),
 	}
 

@@ -191,10 +191,10 @@ func RunWithOptionsAndStats(ctx context.Context, opts *RunOptions) (*RunStats, e
 		}
 
 		genCtx := &GenerateContext{
-			Targets:       targets,
-			FileConfigs:   result.FileConfigs,
-			DefaultOutput: opts.Output,
-			Verbose:       opts.Verbose,
+			Targets:        targets,
+			PackageConfigs: result.PackageConfigs,
+			DefaultOutput:  opts.Output,
+			Verbose:        opts.Verbose,
 		}
 
 		nt1 := time.Now()
@@ -408,19 +408,19 @@ func writeGGFile(path string, gen *gg.Generator) error {
 }
 
 // GetOutputPath 根据注解参数和默认规则计算输出路径
-// 优先级：注解参数 > 文件级插件配置 > 文件级默认配置 > 命令行参数 > 默认文件名
+// 优先级：注解参数 > 包级插件配置 > 包级默认配置 > 命令行参数 > 默认文件名
 // 模板变量：
 //   - $FILE: 源文件名（不含 .go 后缀）
 //   - $PACKAGE: 包名
-func GetOutputPath(target *Target, ann *Annotation, defaultFileName string, fileConfig *FileConfig, pluginName string, cmdOutput string) string {
+func GetOutputPath(target *Target, ann *Annotation, defaultFileName string, pkgConfig *PackageConfig, pluginName string, cmdOutput string) string {
 	var output string
 
 	// 1. 优先使用注解参数
 	output = ann.GetParam("output")
 
-	// 2. 其次使用文件级配置
-	if output == "" && fileConfig != nil {
-		output = fileConfig.GetPluginOutput(strings.ToLower(pluginName))
+	// 2. 其次使用包级配置
+	if output == "" && pkgConfig != nil {
+		output = pkgConfig.GetPluginOutput(strings.ToLower(pluginName))
 	}
 
 	// 3. 再次使用命令行参数

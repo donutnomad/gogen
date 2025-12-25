@@ -326,3 +326,136 @@ func Func2(ctx context.Context) error {
 		t.Error("expected output to contain Func2 function")
 	}
 }
+
+func TestParseSourceToGGPreservesComments(t *testing.T) {
+	// 测试大块注释（被注释掉的代码）是否被保留
+	source := []byte(`package test
+
+import "fmt"
+
+func Hello() {
+	fmt.Println("Hello")
+}
+
+//
+//func onGinBind(c *gin.Context, val any, typ string) bool {
+//    switch typ {
+//    case "JSON":
+//        if err := c.ShouldBindJSON(val); err != nil {
+//            c.JSON(400, gin.H{"error": err.Error()})
+//            return false
+//        }
+//    case "FORM":
+//        if err := c.ShouldBind(val); err != nil {
+//            c.JSON(400, gin.H{"error": err.Error()})
+//            return false
+//        }
+//    default:
+//        if err := c.ShouldBind(val); err != nil {
+//            c.JSON(400, gin.H{"error": err.Error()})
+//            return false
+//        }
+//    }
+//    return true
+//}
+//
+//func onGinResponse[T any](c *gin.Context, data any, err error) {
+//    c.JSON(200, data)
+//}
+//
+`)
+
+	gen, err := ParseSourceToGG(source)
+	if err != nil {
+		t.Fatalf("ParseSourceToGG failed: %v", err)
+	}
+
+	output := string(gen.Bytes())
+
+	// 验证被注释掉的函数被保留
+	if !strings.Contains(output, "onGinBind") {
+		t.Error("expected output to contain commented-out onGinBind function")
+	}
+	if !strings.Contains(output, "onGinResponse") {
+		t.Error("expected output to contain commented-out onGinResponse function")
+	}
+	if !strings.Contains(output, "ShouldBindJSON") {
+		t.Error("expected output to contain ShouldBindJSON in comments")
+	}
+	if !strings.Contains(output, "ShouldBind") {
+		t.Error("expected output to contain ShouldBind in comments")
+	}
+}
+
+func TestParseSourceToGGPreservesInterDeclarationComments(t *testing.T) {
+	// 测试声明之间的注释是否被保留
+	source := []byte(`package test
+
+import "fmt"
+
+type User struct {
+	ID   int64
+	Name string
+}
+
+// 下面是一些被注释掉的旧代码
+// type OldUser struct {
+//     ID int
+// }
+
+// 这是一个辅助函数的文档注释
+func Helper() {
+	fmt.Println("helper")
+}
+
+//
+// 文件末尾的注释块
+// 包含多行内容
+//
+`)
+
+	gen, err := ParseSourceToGG(source)
+	if err != nil {
+		t.Fatalf("ParseSourceToGG failed: %v", err)
+	}
+
+	output := string(gen.Bytes())
+
+	// 验证声明之间的注释被保留
+	if !strings.Contains(output, "下面是一些被注释掉的旧代码") {
+		t.Error("expected output to contain inter-declaration comments")
+	}
+	if !strings.Contains(output, "OldUser") {
+		t.Error("expected output to contain commented-out OldUser struct")
+	}
+	if !strings.Contains(output, "文件末尾的注释块") {
+		t.Error("expected output to contain trailing comments")
+	}
+}
+
+func TestParseSourceToGGWithNoImports(t *testing.T) {
+	// 测试没有 import 的文件
+	source := []byte(`package test
+
+type Simple struct {
+	Value int
+}
+
+// 这是一个注释
+// 多行注释
+`)
+
+	gen, err := ParseSourceToGG(source)
+	if err != nil {
+		t.Fatalf("ParseSourceToGG failed: %v", err)
+	}
+
+	output := string(gen.Bytes())
+
+	if !strings.Contains(output, "type Simple struct") {
+		t.Error("expected output to contain Simple struct")
+	}
+	if !strings.Contains(output, "这是一个注释") {
+		t.Error("expected output to contain trailing comments")
+	}
+}

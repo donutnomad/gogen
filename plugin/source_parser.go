@@ -1,11 +1,9 @@
 package plugin
 
 import (
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/parser"
-	"go/printer"
 	"go/token"
 	"strings"
 
@@ -55,25 +53,40 @@ func ParseSourceToGG(source []byte) (*gg.Generator, error) {
 	return gen, nil
 }
 
-// extractBody 提取代码体（声明部分）
+// extractBody 提取代码体（import 之后的所有内容，包括注释）
 func extractBody(fset *token.FileSet, file *ast.File, source []byte) (string, error) {
-	var parts []string
+	// 找到 body 的起始位置（最后一个 import 之后，或 package 声明之后）
+	var bodyStart token.Pos
 
+	// 首先找到最后一个 import 声明的结束位置
 	for _, decl := range file.Decls {
-		// 跳过 import 声明
 		if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.IMPORT {
-			continue
+			if genDecl.End() > bodyStart {
+				bodyStart = genDecl.End()
+			}
 		}
-
-		// 获取声明的源代码
-		var buf bytes.Buffer
-		if err := printer.Fprint(&buf, fset, decl); err != nil {
-			return "", err
-		}
-		parts = append(parts, buf.String())
 	}
 
-	return strings.Join(parts, "\n\n"), nil
+	// 如果没有 import，从 package 声明之后开始
+	if bodyStart == 0 {
+		bodyStart = file.Name.End()
+	}
+
+	// 转换为字节偏移量
+	startOffset := fset.Position(bodyStart).Offset
+
+	// 确保不越界
+	if startOffset >= len(source) {
+		return "", nil
+	}
+
+	// 提取 body 部分
+	body := string(source[startOffset:])
+
+	// 去除开头的空白行，但保留后续内容的格式
+	body = strings.TrimLeft(body, " \t\n\r")
+
+	return body, nil
 }
 
 // ParseSourceToGGWithHeader 与 ParseSourceToGG 相同，但可以设置文件头注释

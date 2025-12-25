@@ -3,6 +3,7 @@ package plugin
 import (
 	"go/ast"
 	"go/token"
+	"path/filepath"
 
 	"github.com/donutnomad/gg"
 )
@@ -77,9 +78,9 @@ type ScanResult struct {
 	Funcs      []*AnnotatedTarget // 带注解的包级函数
 	Methods    []*AnnotatedTarget // 带注解的方法
 
-	// FileConfigs 文件级配置
-	// key: 文件路径
-	FileConfigs map[string]*FileConfig
+	// PackageConfigs 包级配置
+	// key: 包目录路径（绝对路径）
+	PackageConfigs map[string]*PackageConfig
 }
 
 // All 返回所有带注解的目标
@@ -108,18 +109,25 @@ func (r *ScanResult) ByAnnotation(name string) []*AnnotatedTarget {
 
 // GenerateContext 生成上下文，传递给 Generator
 type GenerateContext struct {
-	Targets       []*AnnotatedTarget     // 该 Generator 需要处理的目标
-	FileConfigs   map[string]*FileConfig // 文件级配置，key: 文件路径
-	DefaultOutput string                 // 命令行指定的默认输出路径（最低优先级）
-	Verbose       bool                   // 详细输出
+	Targets        []*AnnotatedTarget        // 该 Generator 需要处理的目标
+	PackageConfigs map[string]*PackageConfig // 包级配置，key: 包目录路径
+	DefaultOutput  string                    // 命令行指定的默认输出路径（最低优先级）
+	Verbose        bool                      // 详细输出
 }
 
-// GetFileConfig 获取指定文件的配置
-func (c *GenerateContext) GetFileConfig(filePath string) *FileConfig {
-	if c.FileConfigs == nil {
+// GetPackageConfig 获取指定文件所在包的配置
+func (c *GenerateContext) GetPackageConfig(filePath string) *PackageConfig {
+	if c.PackageConfigs == nil {
 		return nil
 	}
-	return c.FileConfigs[filePath]
+	pkgDir := filepath.Dir(filePath)
+	return c.PackageConfigs[pkgDir]
+}
+
+// GetFileConfig 获取指定文件的配置（兼容旧 API，实际返回包级配置）
+// Deprecated: 请使用 GetPackageConfig
+func (c *GenerateContext) GetFileConfig(filePath string) *PackageConfig {
+	return c.GetPackageConfig(filePath)
 }
 
 // GenerateResult 生成结果
@@ -143,28 +151,28 @@ type GenerateResult struct {
 	Skipped int
 }
 
-// FileConfig 文件级生成配置
-// 通过 // go:gogen: 注释定义
+// PackageConfig 包级生成配置
+// 通过 //go:gogen: 或 // go:gogen: 注释定义，作用于整个包
 // 示例:
 //
-//	// go:gogen: -output `$FILE_query`
+//	//go:gogen: -output `$FILE_query`
 //	// go:gogen: plugin:gsql -output `$FILE_query` plugin:setter -output `0api_generated`
-type FileConfig struct {
-	FilePath string // 文件路径
+type PackageConfig struct {
+	PackageDir string // 包目录路径
 
 	// DefaultOutput 默认输出路径（对所有插件生效）
-	// 来自: // go:gogen: -output `xxx`
+	// 来自: //go:gogen: -output `xxx`
 	DefaultOutput string
 
 	// PluginOutputs 插件特定的输出路径
 	// key: 插件名（小写）, value: 输出路径
-	// 来自: // go:gogen: plugin:gsql -output `xxx`
+	// 来自: //go:gogen: plugin:gsql -output `xxx`
 	PluginOutputs map[string]string
 }
 
 // GetPluginOutput 获取指定插件的输出路径
 // 优先返回插件特定配置，其次返回默认配置，最后返回空字符串
-func (c *FileConfig) GetPluginOutput(pluginName string) string {
+func (c *PackageConfig) GetPluginOutput(pluginName string) string {
 	if c == nil {
 		return ""
 	}
@@ -173,6 +181,10 @@ func (c *FileConfig) GetPluginOutput(pluginName string) string {
 	}
 	return c.DefaultOutput
 }
+
+// FileConfig 文件级生成配置（已废弃，使用 PackageConfig）
+// Deprecated: 请使用 PackageConfig
+type FileConfig = PackageConfig
 
 // NewGenerateResult 创建新的生成结果
 func NewGenerateResult() *GenerateResult {
