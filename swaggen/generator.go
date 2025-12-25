@@ -374,12 +374,18 @@ func NewGinGenerator(collection *InterfaceCollection) *GinGenerator {
 
 // GenerateGinCode 生成 Gin 绑定代码
 func (g *GinGenerator) GenerateGinCode(comments map[string]string) (constructCode, code string) {
+	// 按接口名排序，确保生成代码顺序稳定
+	sortedInterfaces := make([]SwaggerInterface, len(g.collection.Interfaces))
+	copy(sortedInterfaces, g.collection.Interfaces)
+	sort.Slice(sortedInterfaces, func(i, j int) bool {
+		return sortedInterfaces[i].Name < sortedInterfaces[j].Name
+	})
+
 	var parts []string
 	var constructorParts []string
-
 	var handlerInterface []string
 
-	for _, iface := range g.collection.Interfaces {
+	for _, iface := range sortedInterfaces {
 		var middlewareCount int
 		var middlewareMap = make(map[string][]*parsers.MiddleWare)
 		var handlerItfName = fmt.Sprintf("%sHandler", iface.Name)

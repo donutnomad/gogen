@@ -36,7 +36,7 @@ func NewSwagGenerator() *SwagGenerator {
 			SwagParams{},
 		),
 	}
-	gen.SetPriority(30) // Swag 优先级
+	gen.SetPriority(50) // Swag 优先级
 	return gen
 }
 
