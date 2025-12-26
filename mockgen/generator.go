@@ -617,9 +617,6 @@ func (g *generator) Output(format bool) []byte {
 	return src
 }
 
-// packageNameCache caches import path to package name mappings
-var packageNameCache = make(map[string]string)
-
 // createPackageMap returns a map of import path to package name
 // for specified importPaths.
 // This implementation uses go/build.Import instead of exec "go list"
@@ -627,12 +624,6 @@ var packageNameCache = make(map[string]string)
 func createPackageMap(importPaths []string) map[string]string {
 	pkgMap := make(map[string]string)
 	for _, importPath := range importPaths {
-		// Check cache first
-		if name, ok := packageNameCache[importPath]; ok {
-			pkgMap[importPath] = name
-			continue
-		}
-
 		// Use go/build.Import to get package info without exec
 		pkg, err := build.Import(importPath, ".", 0)
 		if err != nil {
@@ -642,7 +633,6 @@ func createPackageMap(importPaths []string) map[string]string {
 			continue
 		}
 		pkgMap[importPath] = pkg.Name
-		packageNameCache[importPath] = pkg.Name
 	}
 	return pkgMap
 }

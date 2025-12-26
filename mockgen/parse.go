@@ -31,50 +31,17 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 
 	"go.uber.org/mock/mockgen/model"
 )
 
-// fileParseCache caches parsed AST files to avoid re-parsing
-var (
-	fileParseCache   = make(map[string]*parsedFile)
-	fileParseCacheMu sync.RWMutex
-
-	// packageParseCache caches parsed packages
-	packageParseCache   = make(map[string]*fileParser)
-	packageParseCacheMu sync.RWMutex
-)
-
-type parsedFile struct {
-	fset *token.FileSet
-	file *ast.File
-}
-
-// getParsedFile returns cached parsed file or parses it
-func getParsedFile(filePath string) (*token.FileSet, *ast.File, error) {
-	fileParseCacheMu.RLock()
-	if cached, ok := fileParseCache[filePath]; ok {
-		fileParseCacheMu.RUnlock()
-		return cached.fset, cached.file, nil
-	}
-	fileParseCacheMu.RUnlock()
-
-	fileParseCacheMu.Lock()
-	defer fileParseCacheMu.Unlock()
-
-	// Double-check after acquiring write lock
-	if cached, ok := fileParseCache[filePath]; ok {
-		return cached.fset, cached.file, nil
-	}
-
+// parseFile parses a Go source file and returns its AST
+func parseSourceFile(filePath string) (*token.FileSet, *ast.File, error) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, filePath, nil, 0)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	fileParseCache[filePath] = &parsedFile{fset: fset, file: file}
 	return fset, file, nil
 }
 
@@ -110,8 +77,8 @@ func sourceModeWithOptions(opts SourceModeOptions) (*model.Package, error) {
 		return nil, err
 	}
 
-	// Use cached file parsing
-	fs, file, err := getParsedFile(opts.Source)
+	// Parse source file (no caching to ensure fresh data)
+	fs, file, err := parseSourceFile(opts.Source)
 	if err != nil {
 		return nil, fmt.Errorf("failed parsing source file %v: %v", opts.Source, err)
 	}
@@ -337,22 +304,6 @@ func (p *fileParser) parseFile(importPath string, file *ast.File) (*model.Packag
 // parsePackage loads package specified by path, parses it and returns
 // a new fileParser with the parsed imports and interfaces.
 func (p *fileParser) parsePackage(path string) (*fileParser, error) {
-	// Check cache first
-	packageParseCacheMu.RLock()
-	if cached, ok := packageParseCache[path]; ok {
-		packageParseCacheMu.RUnlock()
-		return cached, nil
-	}
-	packageParseCacheMu.RUnlock()
-
-	packageParseCacheMu.Lock()
-	defer packageParseCacheMu.Unlock()
-
-	// Double-check after acquiring write lock
-	if cached, ok := packageParseCache[path]; ok {
-		return cached, nil
-	}
-
 	newP := &fileParser{
 		fileSet:            token.NewFileSet(),
 		imports:            make(map[string]importedPackage),
@@ -379,7 +330,6 @@ func (p *fileParser) parsePackage(path string) (*fileParser, error) {
 		}
 	}
 
-	packageParseCache[path] = newP
 	return newP, nil
 }
 
