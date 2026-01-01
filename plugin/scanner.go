@@ -735,20 +735,17 @@ func (s *Scanner) parseVarConstDecl(fset *token.FileSet, filePath, packageName s
 	pkgConfig  *PackageConfig
 	err        error
 }) {
-	var docText string
-	if decl.Doc != nil {
-		docText = decl.Doc.Text()
-	}
+	// 判断是否为分组声明（有括号）
+	isGrouped := decl.Lparen.IsValid()
 
-	annotations := ParseAnnotations(docText)
-	if len(annotations) == 0 {
-		return
-	}
-
-	if len(s.annotationFilter) > 0 {
-		annotations = FilterByNames(annotations, s.annotationFilter...)
-		if len(annotations) == 0 {
-			return
+	// 获取声明级别的注解（在 var 或 const 关键字之前）
+	// 仅对单行声明有效，分组声明忽略此注解
+	var declAnnotations []*Annotation
+	if !isGrouped && decl.Doc != nil {
+		declAnnotations = ParseAnnotations(decl.Doc.Text())
+		// 立即应用过滤器
+		if len(s.annotationFilter) > 0 {
+			declAnnotations = FilterByNames(declAnnotations, s.annotationFilter...)
 		}
 	}
 
@@ -756,6 +753,37 @@ func (s *Scanner) parseVarConstDecl(fset *token.FileSet, filePath, packageName s
 		valueSpec, ok := spec.(*ast.ValueSpec)
 		if !ok {
 			continue
+		}
+
+		// 获取每个 ValueSpec 的注解
+		// 1. 优先检查变量上方的注释 (Doc)
+		// 2. 其次检查行尾注释 (Comment)
+		var annotations []*Annotation
+		useDeclAnnotations := false
+		if valueSpec.Doc != nil {
+			annotations = ParseAnnotations(valueSpec.Doc.Text())
+		}
+		// 如果上方没有注解，检查行尾注释
+		if len(annotations) == 0 && valueSpec.Comment != nil {
+			annotations = ParseAnnotations(valueSpec.Comment.Text())
+		}
+
+		// 对于单行声明，如果 spec 没有注解，使用 decl 注解
+		if !isGrouped && len(annotations) == 0 {
+			annotations = declAnnotations
+			useDeclAnnotations = true
+		}
+
+		if len(annotations) == 0 {
+			continue
+		}
+
+		// 应用过滤器（对 spec 级别的注解，declAnnotations 已经过滤过了）
+		if len(s.annotationFilter) > 0 && !useDeclAnnotations {
+			annotations = FilterByNames(annotations, s.annotationFilter...)
+			if len(annotations) == 0 {
+				continue
+			}
 		}
 
 		for _, name := range valueSpec.Names {
@@ -768,7 +796,7 @@ func (s *Scanner) parseVarConstDecl(fset *token.FileSet, filePath, packageName s
 				Name:        name.Name,
 				PackageName: packageName,
 				FilePath:    filePath,
-				Position:    valueSpec.Pos(),
+				Position:    name.Pos(), // 使用具体变量名的位置
 				Node:        valueSpec,
 			}
 
