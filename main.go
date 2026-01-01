@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/donutnomad/gogen/codegen"
 	"github.com/donutnomad/gogen/gormgen"
 	"github.com/donutnomad/gogen/mockgen"
 	"github.com/donutnomad/gogen/plugin"
@@ -23,6 +24,7 @@ func init() {
 	plugin.MustRegister(slicegen.NewSliceGenerator())
 	plugin.MustRegister(mockgen.NewMockGenerator())
 	plugin.MustRegister(swaggen.NewSwagGenerator())
+	plugin.MustRegister(codegen.NewCodeGenerator())
 }
 
 var (

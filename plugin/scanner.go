@@ -207,6 +207,8 @@ func (s *Scanner) parseFiles(ctx context.Context, files []string) (*ScanResult, 
 		interfaces []*AnnotatedTarget
 		funcs      []*AnnotatedTarget
 		methods    []*AnnotatedTarget
+		vars       []*AnnotatedTarget
+		consts     []*AnnotatedTarget
 		pkgConfig  *PackageConfig
 		err        error
 	}
@@ -234,6 +236,8 @@ func (s *Scanner) parseFiles(ctx context.Context, files []string) (*ScanResult, 
 						interfaces: r.interfaces,
 						funcs:      r.funcs,
 						methods:    r.methods,
+						vars:       r.vars,
+						consts:     r.consts,
 						pkgConfig:  r.pkgConfig,
 						err:        r.err,
 					}
@@ -272,6 +276,8 @@ func (s *Scanner) parseFiles(ctx context.Context, files []string) (*ScanResult, 
 		result.Interfaces = append(result.Interfaces, r.interfaces...)
 		result.Funcs = append(result.Funcs, r.funcs...)
 		result.Methods = append(result.Methods, r.methods...)
+		result.Vars = append(result.Vars, r.vars...)
+		result.Consts = append(result.Consts, r.consts...)
 		if r.pkgConfig != nil {
 			pkgDir := r.pkgConfig.PackageDir
 			// 如果该包已有配置，检查是否冲突
@@ -304,6 +310,8 @@ func (s *Scanner) parseFile(filePath string) (result struct {
 	interfaces []*AnnotatedTarget
 	funcs      []*AnnotatedTarget
 	methods    []*AnnotatedTarget
+	vars       []*AnnotatedTarget
+	consts     []*AnnotatedTarget
 	pkgConfig  *PackageConfig
 	err        error
 }) {
@@ -324,6 +332,10 @@ func (s *Scanner) parseFile(filePath string) (result struct {
 		case *ast.GenDecl:
 			if d.Tok == token.TYPE {
 				s.parseTypeDecl(fset, filePath, packageName, d, &result)
+			} else if d.Tok == token.VAR {
+				s.parseVarConstDecl(fset, filePath, packageName, d, TargetVar, &result)
+			} else if d.Tok == token.CONST {
+				s.parseVarConstDecl(fset, filePath, packageName, d, TargetConst, &result)
 			}
 		case *ast.FuncDecl:
 			s.parseFuncDecl(fset, filePath, packageName, d, &result)
@@ -339,6 +351,8 @@ func (s *Scanner) parseTypeDecl(fset *token.FileSet, filePath, packageName strin
 	interfaces []*AnnotatedTarget
 	funcs      []*AnnotatedTarget
 	methods    []*AnnotatedTarget
+	vars       []*AnnotatedTarget
+	consts     []*AnnotatedTarget
 	pkgConfig  *PackageConfig
 	err        error
 }) {
@@ -428,6 +442,8 @@ func (s *Scanner) parseFuncDecl(fset *token.FileSet, filePath, packageName strin
 	interfaces []*AnnotatedTarget
 	funcs      []*AnnotatedTarget
 	methods    []*AnnotatedTarget
+	vars       []*AnnotatedTarget
+	consts     []*AnnotatedTarget
 	pkgConfig  *PackageConfig
 	err        error
 }) {
@@ -706,4 +722,66 @@ func trimQuotes(s string) string {
 		}
 	}
 	return s
+}
+
+// parseVarConstDecl 解析 var/const 声明
+func (s *Scanner) parseVarConstDecl(fset *token.FileSet, filePath, packageName string, decl *ast.GenDecl, kind TargetKind, result *struct {
+	structs    []*AnnotatedTarget
+	interfaces []*AnnotatedTarget
+	funcs      []*AnnotatedTarget
+	methods    []*AnnotatedTarget
+	vars       []*AnnotatedTarget
+	consts     []*AnnotatedTarget
+	pkgConfig  *PackageConfig
+	err        error
+}) {
+	var docText string
+	if decl.Doc != nil {
+		docText = decl.Doc.Text()
+	}
+
+	annotations := ParseAnnotations(docText)
+	if len(annotations) == 0 {
+		return
+	}
+
+	if len(s.annotationFilter) > 0 {
+		annotations = FilterByNames(annotations, s.annotationFilter...)
+		if len(annotations) == 0 {
+			return
+		}
+	}
+
+	for _, spec := range decl.Specs {
+		valueSpec, ok := spec.(*ast.ValueSpec)
+		if !ok {
+			continue
+		}
+
+		for _, name := range valueSpec.Names {
+			if name.Name == "_" {
+				continue // 跳过匿名变量
+			}
+
+			target := &Target{
+				Kind:        kind,
+				Name:        name.Name,
+				PackageName: packageName,
+				FilePath:    filePath,
+				Position:    valueSpec.Pos(),
+				Node:        valueSpec,
+			}
+
+			annotatedTarget := &AnnotatedTarget{
+				Target:      target,
+				Annotations: annotations,
+			}
+
+			if kind == TargetVar {
+				result.vars = append(result.vars, annotatedTarget)
+			} else {
+				result.consts = append(result.consts, annotatedTarget)
+			}
+		}
+	}
 }

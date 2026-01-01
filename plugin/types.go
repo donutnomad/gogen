@@ -16,6 +16,8 @@ const (
 	TargetInterface                       // 接口
 	TargetFunc                            // 包级函数
 	TargetMethod                          // 结构体方法
+	TargetVar                             // 变量声明
+	TargetConst                           // 常量声明
 )
 
 func (k TargetKind) String() string {
@@ -28,6 +30,10 @@ func (k TargetKind) String() string {
 		return "func"
 	case TargetMethod:
 		return "method"
+	case TargetVar:
+		return "var"
+	case TargetConst:
+		return "const"
 	default:
 		return "unknown"
 	}
@@ -77,6 +83,8 @@ type ScanResult struct {
 	Interfaces []*AnnotatedTarget // 带注解的接口
 	Funcs      []*AnnotatedTarget // 带注解的包级函数
 	Methods    []*AnnotatedTarget // 带注解的方法
+	Vars       []*AnnotatedTarget // 带注解的变量
+	Consts     []*AnnotatedTarget // 带注解的常量
 
 	// PackageConfigs 包级配置
 	// key: 包目录路径（绝对路径）
@@ -85,11 +93,13 @@ type ScanResult struct {
 
 // All 返回所有带注解的目标
 func (r *ScanResult) All() []*AnnotatedTarget {
-	result := make([]*AnnotatedTarget, 0, len(r.Structs)+len(r.Interfaces)+len(r.Funcs)+len(r.Methods))
+	result := make([]*AnnotatedTarget, 0, len(r.Structs)+len(r.Interfaces)+len(r.Funcs)+len(r.Methods)+len(r.Vars)+len(r.Consts))
 	result = append(result, r.Structs...)
 	result = append(result, r.Interfaces...)
 	result = append(result, r.Funcs...)
 	result = append(result, r.Methods...)
+	result = append(result, r.Vars...)
+	result = append(result, r.Consts...)
 	return result
 }
 
