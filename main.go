@@ -121,7 +121,7 @@ func runGen(args []string) {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `gogen - Go 代码生成工具
+	_, _ = fmt.Fprintf(os.Stderr, `gogen - Go 代码生成工具
 
 用法:
   gogen [选项] [路径...]
@@ -145,11 +145,11 @@ func usage() {
 	// 动态生成注解帮助信息
 	registry := plugin.Global()
 	if len(registry.Generators()) > 0 {
-		fmt.Fprintf(os.Stderr, "\n支持的注解:\n")
-		fmt.Fprint(os.Stderr, plugin.FormatHelpText(registry))
+		_, _ = fmt.Fprintf(os.Stderr, "\n支持的注解:\n")
+		_, _ = fmt.Fprint(os.Stderr, plugin.FormatHelpText(registry))
 	}
 
-	fmt.Fprintf(os.Stderr, `模板变量:
+	_, _ = fmt.Fprintf(os.Stderr, `模板变量:
   $FILE     - 源文件名（不含 .go 后缀）
   $PACKAGE  - 包名
 
