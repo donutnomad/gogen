@@ -14,7 +14,7 @@ import (
 // GetHttpCode returns the HTTP status code for the given value.
 // The bool return indicates whether the value was found, not whether http is defined.
 // Returns 0 if the value is not registered.
-func GetHttpCode[T comparable](v T) (int, bool) {
+func GetHttpCode[T any](v T) (int, bool) {
 	_, httpCode, _, _, ok := _codegen_getInfo(v)
 	return httpCode, ok
 }
@@ -22,7 +22,7 @@ func GetHttpCode[T comparable](v T) (int, bool) {
 // GetGrpcCode returns the gRPC status code for the given value.
 // The bool return indicates whether the value was found, not whether grpc is defined.
 // Returns codes.Unknown if the value is not registered.
-func GetGrpcCode[T comparable](v T) (codes.Code, bool) {
+func GetGrpcCode[T any](v T) (codes.Code, bool) {
 	_, _, grpcCode, _, ok := _codegen_getInfo(v)
 	return grpcCode, ok
 }
@@ -30,7 +30,7 @@ func GetGrpcCode[T comparable](v T) (codes.Code, bool) {
 // GetCode returns the business error code for the given value.
 // The bool return indicates whether the value was found.
 // Returns 0 if the value is not registered.
-func GetCode[T comparable](v T) (int, bool) {
+func GetCode[T any](v T) (int, bool) {
 	code, _, _, _, ok := _codegen_getInfo(v)
 	return code, ok
 }
@@ -38,7 +38,7 @@ func GetCode[T comparable](v T) (int, bool) {
 // GetName returns the variable name for the given value.
 // The bool return indicates whether the value was found.
 // Returns empty string if the value is not registered.
-func GetName[T comparable](v T) (string, bool) {
+func GetName[T any](v T) (string, bool) {
 	_, _, _, name, ok := _codegen_getInfo(v)
 	return name, ok
 }
@@ -57,7 +57,7 @@ func AllCodedValues() []any {
 	}
 }
 
-func _codegen_getInfo[T comparable](v T) (code int, httpCode int, grpcCode codes.Code, name string, ok bool) {
+func _codegen_getInfo[T any](v T) (code int, httpCode int, grpcCode codes.Code, name string, ok bool) {
 	val := any(v)
 	if _codegen_equal(val, ErrUserNotFound) {
 		return 11001, 404, codes.NotFound, "ErrUserNotFound", true

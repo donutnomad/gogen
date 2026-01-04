@@ -150,7 +150,7 @@ func (g *CodeGenerator) generateDefinition(codes []*codeInfo) (*gg.Generator, er
 	body.AddString("// GetHttpCode returns the HTTP status code for the given value.")
 	body.AddString("// The bool return indicates whether the value was found, not whether http is defined.")
 	body.AddString("// Returns 0 if the value is not registered.")
-	body.AddString("func GetHttpCode[T comparable](v T) (int, bool) {")
+	body.AddString("func GetHttpCode[T any](v T) (int, bool) {")
 	body.AddString("\t_, httpCode, _, _, ok := _codegen_getInfo(v)")
 	body.AddString("\treturn httpCode, ok")
 	body.AddString("}")
@@ -160,7 +160,7 @@ func (g *CodeGenerator) generateDefinition(codes []*codeInfo) (*gg.Generator, er
 	body.AddString("// GetGrpcCode returns the gRPC status code for the given value.")
 	body.AddString("// The bool return indicates whether the value was found, not whether grpc is defined.")
 	body.AddString("// Returns codes.Unknown if the value is not registered.")
-	body.AddString(fmt.Sprintf("func GetGrpcCode[T comparable](v T) (%s, bool) {", grpcPkg.Type("Code")))
+	body.AddString(fmt.Sprintf("func GetGrpcCode[T any](v T) (%s, bool) {", grpcPkg.Type("Code")))
 	body.AddString("\t_, _, grpcCode, _, ok := _codegen_getInfo(v)")
 	body.AddString("\treturn grpcCode, ok")
 	body.AddString("}")
@@ -170,7 +170,7 @@ func (g *CodeGenerator) generateDefinition(codes []*codeInfo) (*gg.Generator, er
 	body.AddString("// GetCode returns the business error code for the given value.")
 	body.AddString("// The bool return indicates whether the value was found.")
 	body.AddString("// Returns 0 if the value is not registered.")
-	body.AddString("func GetCode[T comparable](v T) (int, bool) {")
+	body.AddString("func GetCode[T any](v T) (int, bool) {")
 	body.AddString("\tcode, _, _, _, ok := _codegen_getInfo(v)")
 	body.AddString("\treturn code, ok")
 	body.AddString("}")
@@ -180,7 +180,7 @@ func (g *CodeGenerator) generateDefinition(codes []*codeInfo) (*gg.Generator, er
 	body.AddString("// GetName returns the variable name for the given value.")
 	body.AddString("// The bool return indicates whether the value was found.")
 	body.AddString("// Returns empty string if the value is not registered.")
-	body.AddString("func GetName[T comparable](v T) (string, bool) {")
+	body.AddString("func GetName[T any](v T) (string, bool) {")
 	body.AddString("\t_, _, _, name, ok := _codegen_getInfo(v)")
 	body.AddString("\treturn name, ok")
 	body.AddString("}")
@@ -199,7 +199,7 @@ func (g *CodeGenerator) generateDefinition(codes []*codeInfo) (*gg.Generator, er
 
 	// 生成内部辅助方法 _codegen_getInfo
 	body.AddLine()
-	body.AddString(fmt.Sprintf("func _codegen_getInfo[T comparable](v T) (code int, httpCode int, grpcCode %s, name string, ok bool) {", grpcPkg.Type("Code")))
+	body.AddString(fmt.Sprintf("func _codegen_getInfo[T any](v T) (code int, httpCode int, grpcCode %s, name string, ok bool) {", grpcPkg.Type("Code")))
 	body.AddString("\tval := any(v)")
 	for _, c := range codes {
 		httpStatus := c.httpStatus
