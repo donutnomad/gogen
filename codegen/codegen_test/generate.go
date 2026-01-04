@@ -3,6 +3,8 @@ package codegen_test
 
 import (
 	"errors"
+	"reflect"
+	"unsafe"
 
 	"google.golang.org/grpc/codes"
 )
@@ -39,6 +41,20 @@ func GetCode[T comparable](v T) (int, bool) {
 func GetName[T comparable](v T) (string, bool) {
 	_, _, _, name, ok := _codegen_getInfo(v)
 	return name, ok
+}
+
+// AllCodedValues returns all registered code values.
+// Each element in the slice is the original value that was annotated with @Code.
+func AllCodedValues() []any {
+	return []any{
+		ErrUserNotFound,
+		ErrDatabaseError,
+		ErrInvalidInput,
+		CodeInvalidInput,
+		CodeNotFound,
+		CodeStrUnauthorized,
+		CodeStrForbidden,
+	}
 }
 
 func _codegen_getInfo[T comparable](v T) (code int, httpCode int, grpcCode codes.Code, name string, ok bool) {
@@ -112,6 +128,9 @@ func _codegen_equalInt(a, b any) bool {
 }
 
 func _codegen_equal(a, b any) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
 	if ea, ok := a.(error); ok {
 		eb, ok := b.(error)
 		return ok && errors.Is(ea, eb)
@@ -120,5 +139,18 @@ func _codegen_equal(a, b any) bool {
 		sb, ok := b.(string)
 		return ok && sa == sb
 	}
-	return _codegen_equalInt(a, b)
+	if _codegen_equalInt(a, b) {
+		return false
+	}
+	va := reflect.ValueOf(a)
+	vb := reflect.ValueOf(b)
+	if va.Type() != vb.Type() {
+		return false
+	}
+	if va.Kind() == reflect.Func {
+		efaceA := *(*[2]unsafe.Pointer)(unsafe.Pointer(&a))
+		efaceB := *(*[2]unsafe.Pointer)(unsafe.Pointer(&b))
+		return efaceA[1] == efaceB[1]
+	}
+	return false
 }

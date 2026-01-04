@@ -185,6 +185,18 @@ func (g *CodeGenerator) generateDefinition(codes []*codeInfo) (*gg.Generator, er
 	body.AddString("\treturn name, ok")
 	body.AddString("}")
 
+	// 生成 AllCodedValues 方法
+	body.AddLine()
+	body.AddString("// AllCodedValues returns all registered code values.")
+	body.AddString("// Each element in the slice is the original value that was annotated with @Code.")
+	body.AddString("func AllCodedValues() []any {")
+	body.AddString("\treturn []any{")
+	for _, c := range codes {
+		body.AddString(fmt.Sprintf("\t\t%s,", c.name))
+	}
+	body.AddString("\t}")
+	body.AddString("}")
+
 	// 生成内部辅助方法 _codegen_getInfo
 	body.AddLine()
 	body.AddString(fmt.Sprintf("func _codegen_getInfo[T comparable](v T) (code int, httpCode int, grpcCode %s, name string, ok bool) {", grpcPkg.Type("Code")))
@@ -256,6 +268,9 @@ func (g *CodeGenerator) generateDefinition(codes []*codeInfo) (*gg.Generator, er
 	// 生成 _codegen_equal 辅助方法（处理 error、字符串和整数）
 	body.AddLine()
 	body.AddString("func _codegen_equal(a, b any) bool {")
+	body.AddString("\tif a == nil || b == nil {")
+	body.AddString("\t\treturn a == b")
+	body.AddString("\t}")
 	body.AddString("\tif ea, ok := a.(error); ok {")
 	body.AddString("\t\teb, ok := b.(error)")
 	body.AddString("\t\treturn ok && errors.Is(ea, eb)")
@@ -264,7 +279,23 @@ func (g *CodeGenerator) generateDefinition(codes []*codeInfo) (*gg.Generator, er
 	body.AddString("\t\tsb, ok := b.(string)")
 	body.AddString("\t\treturn ok && sa == sb")
 	body.AddString("\t}")
-	body.AddString("\treturn _codegen_equalInt(a, b)")
+
+	body.AddString("\tif _codegen_equalInt(a, b) {")
+	body.AddString("\t\treturn false")
+	body.AddString("\t}")
+
+	body.AddString("\tva := reflect.ValueOf(a)")
+	body.AddString("\tvb := reflect.ValueOf(b)")
+	body.AddString("\tif va.Type() != vb.Type() {")
+	body.AddString("\t\treturn false")
+	body.AddString("\t}")
+	body.AddString("\tif va.Kind() == reflect.Func {")
+	body.AddString("\t\tefaceA := *(*[2]unsafe.Pointer)(unsafe.Pointer(&a))")
+	body.AddString("\t\tefaceB := *(*[2]unsafe.Pointer)(unsafe.Pointer(&b))")
+	body.AddString("\t\treturn efaceA[1] == efaceB[1]")
+	body.AddString("\t}")
+
+	body.AddString("\treturn false")
 	body.AddString("}")
 
 	return gen, nil
