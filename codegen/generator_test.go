@@ -31,6 +31,11 @@ func TestCodegenDuplicate(t *testing.T) {
 	testCodegen(t, "testdata/duplicate.go", false, 2)
 }
 
+func TestCodegenReuse(t *testing.T) {
+	// 测试 reuse=true 功能，允许重复使用相同的 code 值
+	testCodegen(t, "testdata/reuse.go", true, 0)
+}
+
 func TestCodegenCrossPackage(t *testing.T) {
 	// 测试不同包可以使用相同的 code 值
 	ctx := context.Background()

@@ -13,9 +13,10 @@ const generatorName = "codegen"
 
 // CodeParams 定义 Code 注解支持的参数
 type CodeParams struct {
-	Code int    `param:"name=code,required=true,default=0,description=业务错误码"`
-	HTTP string `param:"name=http,required=false,default=500,description=HTTP 状态码"`
-	GRPC string `param:"name=grpc,required=false,default=Internal,description=gRPC Code 名称"`
+	Code  int    `param:"name=code,required=true,default=0,description=业务错误码"`
+	HTTP  string `param:"name=http,required=false,default=500,description=HTTP 状态码"`
+	GRPC  string `param:"name=grpc,required=false,default=Internal,description=gRPC Code 名称"`
+	Reuse bool   `param:"name=reuse,required=false,default=false,description=允许重用已有的 code 值"`
 }
 
 // CodeGenerator 实现 plugin.Generator 接口
@@ -73,17 +74,19 @@ func (g *CodeGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.GenerateR
 			continue
 		}
 
-		// 检测包内 code 重复
-		pkgKey := at.Target.PackageName
-		if pkgCodeValues[pkgKey] == nil {
-			pkgCodeValues[pkgKey] = make(map[int]string)
+		// 检测包内 code 重复（除非标记为 reuse）
+		if !params.Reuse {
+			pkgKey := at.Target.PackageName
+			if pkgCodeValues[pkgKey] == nil {
+				pkgCodeValues[pkgKey] = make(map[int]string)
+			}
+			if existingName, exists := pkgCodeValues[pkgKey][params.Code]; exists {
+				result.AddError(fmt.Errorf("包 %s 中错误码重复: %s 和 %s 都使用了 code=%d (如需重用，请添加 reuse=true)",
+					pkgKey, existingName, at.Target.Name, params.Code))
+				continue
+			}
+			pkgCodeValues[pkgKey][params.Code] = at.Target.Name
 		}
-		if existingName, exists := pkgCodeValues[pkgKey][params.Code]; exists {
-			result.AddError(fmt.Errorf("包 %s 中错误码重复: %s 和 %s 都使用了 code=%d",
-				pkgKey, existingName, at.Target.Name, params.Code))
-			continue
-		}
-		pkgCodeValues[pkgKey][params.Code] = at.Target.Name
 
 		// 计算输出路径
 		fileConfig := ctx.GetFileConfig(at.Target.FilePath)
@@ -99,8 +102,12 @@ func (g *CodeGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.GenerateR
 		})
 
 		if ctx.Verbose {
-			fmt.Printf("[codegen] 处理 %s %s (code=%d, http=%s, grpc=%s) -> %s\n",
-				at.Target.Kind, at.Target.Name, params.Code, params.HTTP, params.GRPC, outputPath)
+			reuseInfo := ""
+			if params.Reuse {
+				reuseInfo = " (reuse=true)"
+			}
+			fmt.Printf("[codegen] 处理 %s %s (code=%d, http=%s, grpc=%s%s) -> %s\n",
+				at.Target.Kind, at.Target.Name, params.Code, params.HTTP, params.GRPC, reuseInfo, outputPath)
 		}
 	}
 
@@ -281,7 +288,7 @@ func (g *CodeGenerator) generateDefinition(codes []*codeInfo) (*gg.Generator, er
 	body.AddString("\t}")
 
 	body.AddString("\tif _codegen_equalInt(a, b) {")
-	body.AddString("\t\treturn false")
+	body.AddString("\t\treturn true")
 	body.AddString("\t}")
 
 	body.AddString("\tva := reflect.ValueOf(a)")
