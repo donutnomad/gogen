@@ -202,8 +202,16 @@ func (r *devRunner) handleEvent(event fsnotify.Event) {
 		return
 	}
 
-	// 跳过生成的文件
+	// 跳过生成的文件（通过文件名后缀判断）
 	if isGeneratedFile(filePath) {
+		return
+	}
+
+	// 跳过生成的文件（通过文件头部注释判断）
+	if isGeneratedByContent(filePath) {
+		if r.opts.Verbose {
+			fmt.Printf("跳过生成文件: %s\n", filePath)
+		}
 		return
 	}
 
@@ -369,7 +377,7 @@ func collectWatchDirs(patterns []string) ([]string, error) {
 	return dirs, nil
 }
 
-// isGeneratedFile 检查是否是生成的文件
+// isGeneratedFile 检查是否是生成的文件（通过文件名后缀）
 func isGeneratedFile(filePath string) bool {
 	base := filepath.Base(filePath)
 	return strings.HasSuffix(base, "_test.go") ||
@@ -379,4 +387,25 @@ func isGeneratedFile(filePath string) bool {
 		strings.HasSuffix(base, "_setter.go") ||
 		strings.HasSuffix(base, "_slice.go") ||
 		strings.HasSuffix(base, "_mock.go")
+}
+
+// isGeneratedByContent 检查文件是否包含代码生成标记（通过读取文件头部）
+func isGeneratedByContent(filePath string) bool {
+	// 只读取文件的前几行来检查
+	file, err := os.Open(filePath)
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+
+	// 读取前 512 字节足够检查头部注释
+	buf := make([]byte, 512)
+	n, err := file.Read(buf)
+	if err != nil && n == 0 {
+		return false
+	}
+
+	content := string(buf[:n])
+	// 检查是否包含 "DO NOT EDIT" 标记
+	return strings.Contains(content, "DO NOT EDIT")
 }
