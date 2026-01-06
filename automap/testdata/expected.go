@@ -453,3 +453,29 @@ var ExpectedJSONSliceMethodMapping = ParseResult{
 		},
 	},
 }
+
+// 场景26: OneToMany 映射 Bug 复现 - MultiSigPO.ToPO
+// 同一个源字段的多个子字段映射到 PO 的多个独立列
+var ExpectedMultiSigMapping = ParseResult{
+	FuncName:     "ToPO",
+	ReceiverType: "MultiSigPO",
+	SourceType:   "MultiSigDomain",
+	TargetType:   "MultiSigPO",
+	Groups: []MappingGroup{
+		{
+			Type: OneToOne,
+			Mappings: []FieldMapping{
+				{SourcePath: "ID", TargetPath: "ID", ColumnName: "id"},
+				{SourcePath: "Name", TargetPath: "Name", ColumnName: "name"},
+			},
+		},
+		{
+			Type:        OneToMany,
+			SourceField: "Content",
+			Mappings: []FieldMapping{
+				{SourcePath: "Content.NewPublicKeys", TargetPath: "NewPublicKeys", ColumnName: "new_public_keys"},
+				{SourcePath: "Content.NewThreshold", TargetPath: "NewThreshold", ColumnName: "new_threshold"},
+			},
+		},
+	},
+}

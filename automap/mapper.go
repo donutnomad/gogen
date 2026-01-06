@@ -409,7 +409,7 @@ func (m *Mapper) getFieldInfo(structType *ast.StructType, fieldName string) *Fie
 
 			// 检查是否是 JSONType
 			fieldType := getExprString(field.Type)
-			if strings.Contains(fieldType, "JSONType") || strings.Contains(fieldType, "datatypes.JSON") {
+			if strings.Contains(fieldType, "JSONType") {
 				info.IsJSONType = true
 			}
 

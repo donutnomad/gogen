@@ -1157,3 +1157,46 @@ func (p *ExternalNoPrefixPO) ToPO(entity *ExternalNoPrefixDomain) *ExternalNoPre
 		Account: entity.Account.ToColumnsCompact(), // 方法调用返回外部包类型
 	}
 }
+
+// ============================================================================
+// 测试场景26: OneToMany 映射 Bug 复现
+// 同一个源字段的多个子字段映射到 PO 的多个独立列
+// 这个场景测试当 Content.NewPublicKeys 和 Content.NewThreshold 都存在时
+// 生成的 patch 代码是否正确判断各自的字段是否存在
+// ============================================================================
+
+// MultiSigContent 多签内容
+type MultiSigContent struct {
+	NewPublicKeys []string
+	NewThreshold  int
+}
+
+// MultiSigDomain 多签领域模型
+type MultiSigDomain struct {
+	ID      uint64
+	Name    string
+	Content MultiSigContent
+}
+
+// MultiSigPO 多签持久化模型
+type MultiSigPO struct {
+	ID            uint64   `gorm:"column:id;primaryKey"`
+	Name          string   `gorm:"column:name"`
+	NewPublicKeys []string `gorm:"column:new_public_keys;serializer:json"`
+	NewThreshold  int      `gorm:"column:new_threshold"`
+}
+
+// ToPO 一对多映射示例
+// Content.NewPublicKeys -> NewPublicKeys (column: new_public_keys)
+// Content.NewThreshold -> NewThreshold (column: new_threshold)
+func (p *MultiSigPO) ToPO(entity *MultiSigDomain) *MultiSigPO {
+	if entity == nil {
+		return nil
+	}
+	return &MultiSigPO{
+		ID:            entity.ID,
+		Name:          entity.Name,
+		NewPublicKeys: entity.Content.NewPublicKeys,
+		NewThreshold:  entity.Content.NewThreshold,
+	}
+}

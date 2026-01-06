@@ -161,6 +161,17 @@ func TestParseJSONSliceLoMapMethodCall(t *testing.T) {
 	assertParseResult(t, result, expected)
 }
 
+// TestParseMultiSig 测试一对多映射 Bug 复现
+func TestParseMultiSig(t *testing.T) {
+	result, err := automap.Parse("testdata/models.go", "MultiSigPO", "ToPO")
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	expected := testdata.ExpectedMultiSigMapping
+	assertParseResult(t, result, expected)
+}
+
 // assertParseResult 验证解析结果
 func assertParseResult(t *testing.T, result *automap.ParseResult2, expected testdata.ParseResult) {
 	t.Helper()

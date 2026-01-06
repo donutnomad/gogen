@@ -935,3 +935,34 @@ func TestGenerate2Empty(t *testing.T) {
 		t.Errorf("Missing return statement")
 	}
 }
+
+// TestGenerate2MultiSig 测试 OneToMany Bug 复现
+func TestGenerate2MultiSig(t *testing.T) {
+	_, funcCode, _, err := automap.Generate2("testdata/models.go", "MultiSigPO", "ToPO", "ToPatch")
+	if err != nil {
+		t.Fatalf("Generate2 failed: %v", err)
+	}
+
+	// 验证 OneToMany 映射：所有子字段应该在一个 Content.IsPresent() 块中
+	expectedMappings := []string{
+		`// OneToMany: Content`,
+		`if fields.Content.IsPresent()`,
+		`values["new_public_keys"] = b.NewPublicKeys`,
+		`values["new_threshold"] = b.NewThreshold`,
+	}
+	for _, expected := range expectedMappings {
+		if !strings.Contains(funcCode, expected) {
+			t.Errorf("Missing expected mapping: %s\nGenerated code:\n%s", expected, funcCode)
+		}
+	}
+
+	// 确保 NewPublicKeys 和 NewThreshold 不是单独检查的
+	if strings.Contains(funcCode, "fields.NewPublicKeys.IsPresent()") {
+		t.Errorf("BUG: NewPublicKeys should not be checked separately, should use Content.IsPresent()")
+	}
+	if strings.Contains(funcCode, "fields.NewThreshold.IsPresent()") {
+		t.Errorf("BUG: NewThreshold should not be checked separately, should use Content.IsPresent()")
+	}
+
+	t.Logf("Generated function code:\n%s", funcCode)
+}
