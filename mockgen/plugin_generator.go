@@ -3,6 +3,8 @@ package mockgen
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
+	"strings"
 
 	"github.com/donutnomad/gogen/plugin"
 )
@@ -80,7 +82,20 @@ func (g *MockGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.GenerateR
 	}
 
 	// 为每个输出文件生成代码
-	for outputPath, targets := range fileTargets {
+	// 按输出路径排序，确保生成顺序一致
+	outputPaths := make([]string, 0, len(fileTargets))
+	for outputPath := range fileTargets {
+		outputPaths = append(outputPaths, outputPath)
+	}
+	slices.Sort(outputPaths)
+
+	for _, outputPath := range outputPaths {
+		targets := fileTargets[outputPath]
+		// 按接口名称排序，确保同一文件中不同接口的顺序一致
+		slices.SortFunc(targets, func(a, b *mockTargetInfo) int {
+			return strings.Compare(a.target.Target.Name, b.target.Target.Name)
+		})
+
 		output, err := g.generateMockCode(outputPath, targets)
 		if err != nil {
 			result.AddError(fmt.Errorf("生成 %s 失败: %w", outputPath, err))

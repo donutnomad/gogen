@@ -2,6 +2,8 @@ package gormgen
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/donutnomad/gg"
@@ -105,8 +107,21 @@ func (g *GsqlGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.GenerateR
 	}
 
 	// 为每个输出文件生成 gg 定义
+	// 按输出路径排序，确保生成顺序一致
 	var generateTotal time.Duration
-	for outputPath, targets := range fileTargets {
+	outputPaths := make([]string, 0, len(fileTargets))
+	for outputPath := range fileTargets {
+		outputPaths = append(outputPaths, outputPath)
+	}
+	slices.Sort(outputPaths)
+
+	for _, outputPath := range outputPaths {
+		targets := fileTargets[outputPath]
+		// 按结构体名称排序，确保同一文件中不同结构体的顺序一致
+		slices.SortFunc(targets, func(a, b *targetInfo) int {
+			return strings.Compare(a.model.Name, b.model.Name)
+		})
+
 		genStart := time.Now()
 		gen, err := g.generateDefinition(targets)
 		genDur := time.Since(genStart)

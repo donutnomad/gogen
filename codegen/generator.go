@@ -2,6 +2,7 @@ package codegen
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -112,7 +113,20 @@ func (g *CodeGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.GenerateR
 	}
 
 	// 为每个输出文件生成代码
-	for outputPath, codes := range fileTargets {
+	// 按输出路径排序，确保生成顺序一致
+	outputPaths := make([]string, 0, len(fileTargets))
+	for outputPath := range fileTargets {
+		outputPaths = append(outputPaths, outputPath)
+	}
+	slices.Sort(outputPaths)
+
+	for _, outputPath := range outputPaths {
+		codes := fileTargets[outputPath]
+		// 按名称排序，确保同一文件中不同错误码的顺序一致
+		slices.SortFunc(codes, func(a, b *codeInfo) int {
+			return strings.Compare(a.name, b.name)
+		})
+
 		gen, err := g.generateDefinition(codes)
 		if err != nil {
 			result.AddError(fmt.Errorf("生成 %s 失败: %w", outputPath, err))

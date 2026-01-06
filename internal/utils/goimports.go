@@ -15,7 +15,7 @@ func WriteFormat(fileName string, src []byte) error {
 		Comments:   true,
 		TabIndent:  true,
 		TabWidth:   8,
-		FormatOnly: false,
+		FormatOnly: true,
 	})
 	if err != nil {
 		fmt.Println("format file failed:")

@@ -140,7 +140,7 @@ func _codegen_equal(a, b any) bool {
 		return ok && sa == sb
 	}
 	if _codegen_equalInt(a, b) {
-		return false
+		return true
 	}
 	va := reflect.ValueOf(a)
 	vb := reflect.ValueOf(b)

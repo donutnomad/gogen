@@ -3,6 +3,7 @@ package slicegen
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/donutnomad/gg"
@@ -93,7 +94,20 @@ func (g *SliceGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.Generate
 	}
 
 	// 为每个输出文件生成 gg 定义
-	for outputPath, targets := range fileTargets {
+	// 按输出路径排序，确保生成顺序一致
+	outputPaths := make([]string, 0, len(fileTargets))
+	for outputPath := range fileTargets {
+		outputPaths = append(outputPaths, outputPath)
+	}
+	slices.Sort(outputPaths)
+
+	for _, outputPath := range outputPaths {
+		targets := fileTargets[outputPath]
+		// 按结构体名称排序，确保同一文件中不同结构体的顺序一致
+		slices.SortFunc(targets, func(a, b *sliceTargetInfo) int {
+			return strings.Compare(a.structName, b.structName)
+		})
+
 		gen, err := g.generateDefinition(targets)
 		if err != nil {
 			result.AddError(fmt.Errorf("生成 %s 失败: %w", outputPath, err))
