@@ -5,7 +5,7 @@ go 1.25.5
 require (
 	github.com/dave/jennifer v1.7.1
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
-	github.com/donutnomad/gg v0.0.0-20251222233722-c347b8af41b6
+	github.com/donutnomad/gg v0.0.0-20260107064610-e0d9f4efda82
 	github.com/donutnomad/xchain v0.0.0-20251216085056-ec21251b5a75
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gin-gonic/gin v1.11.0

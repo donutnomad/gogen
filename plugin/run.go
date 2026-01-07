@@ -369,14 +369,9 @@ func mergeDefinitionsWithSeparator(definitions []*gg.Generator, genNames []strin
 		merged.SetPackage(pkgName)
 	}
 
-	// 收集所有 imports
-	for _, def := range definitions {
-		for _, imp := range def.Imports() {
-			merged.P(imp)
-		}
-	}
-
 	// 合并每个定义的 body，并添加分隔符
+	// 注意：不要手动收集 imports，因为 def.Imports() 只返回路径不包含别名
+	// 直接使用 Merge 方法，它会正确处理 imports 和别名
 	for i, def := range definitions {
 		// 添加分隔符注释
 		genName := "unknown"

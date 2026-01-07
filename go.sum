@@ -31,8 +31,8 @@ github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/donutnomad/eths v0.1.29 h1:NyGPewMm0zjgFvHI6SnN9ekaiWq5QO/NG4LyCSyqo8M=
 github.com/donutnomad/eths v0.1.29/go.mod h1:GTgV5ro4U1z8c9y1kM2Sf9i4tCfkHeFpuUsBMNIae2M=
-github.com/donutnomad/gg v0.0.0-20251222233722-c347b8af41b6 h1:+9PfjYmc/V+FMk+ErkwmPjBeFROi8g01GgQF27JW3kA=
-github.com/donutnomad/gg v0.0.0-20251222233722-c347b8af41b6/go.mod h1:La6rTjV7nBUvxx/Ml1iF+7/Q9okPwlUc0pOdkgUGv+k=
+github.com/donutnomad/gg v0.0.0-20260107064610-e0d9f4efda82 h1:uW2lZUFaz50Cr0ORcMm4N51ce2qpjoIOAnyoiJz8Kss=
+github.com/donutnomad/gg v0.0.0-20260107064610-e0d9f4efda82/go.mod h1:La6rTjV7nBUvxx/Ml1iF+7/Q9okPwlUc0pOdkgUGv+k=
 github.com/donutnomad/solana-web3 v0.0.0-20250313072913-99732fd085a1 h1:VZpfIVPczawQQBak3CZs+hMRaH+pc6T/6dWe2wlw81U=
 github.com/donutnomad/solana-web3 v0.0.0-20250313072913-99732fd085a1/go.mod h1:xiLdph2USiAq2zV4a8HiADyZWbzhccz3MTdDVFdHVdI=
 github.com/donutnomad/xchain v0.0.0-20251216085056-ec21251b5a75 h1:3viQzjr4x0rlhkuJwxcCg1FR5Fh7W8PRDmVuCUpjHnk=
