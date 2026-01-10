@@ -107,3 +107,40 @@ gen := gg.New()
 gen.SetPackage("mypackage")
 gen.NewStruct("MyType").AddField("Name", "string")
 ```
+
+## Go LSP 工具
+
+本项目已配置 Go LSP (gopls)，可通过 LSP 工具进行代码智能分析。
+
+### 可用操作
+
+| 操作 | 说明 |
+|------|------|
+| `goToDefinition` | 跳转到符号定义位置 |
+| `findReferences` | 查找符号的所有引用 |
+| `hover` | 获取悬停信息（文档、类型） |
+| `documentSymbol` | 获取文件中的所有符号 |
+| `workspaceSymbol` | 在整个工作区搜索符号 |
+| `goToImplementation` | 查找接口的实现 |
+| `prepareCallHierarchy` | 获取调用层次项 |
+| `incomingCalls` | 查找调用某函数的所有位置 |
+| `outgoingCalls` | 查找某函数调用的所有函数 |
+
+### 使用示例
+
+```
+# 查找 ParseStruct 函数的所有调用者
+LSP incomingCalls /path/to/parser.go:13:6
+
+# 获取文件中的所有符号
+LSP documentSymbol /path/to/plugin.go:1:1
+
+# 跳转到定义
+LSP goToDefinition /path/to/file.go:line:character
+```
+
+### 注意事项
+
+- `line` 和 `character` 参数均为 1-based（从 1 开始计数）
+- 使用前需确保光标位置在有效的标识符上
+- 对于方法调用分析，优先使用 `incomingCalls` 和 `outgoingCalls`
