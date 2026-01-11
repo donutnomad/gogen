@@ -246,7 +246,7 @@ func TestDiagramRenderer_CustomSymbols(t *testing.T) {
 	// Case 1: Odd branches (3) - Top/Bottom=Corner, Middle=Stem
 	renderer.AddNode("A", "NodeA")
 	renderer.SetJunction("A", "*")     // Stem
-	renderer.SetCorner("A", "@")       // Top/Bottom
+	renderer.SetCorner("A", "@", "@")  // Top/Bottom
 	renderer.SetIntersection("A", "%") // Intermediate (won't appear in 3 branches)
 
 	renderer.AddEdge("A", "B", "--> ")
@@ -273,7 +273,7 @@ func TestDiagramRenderer_CustomSymbols(t *testing.T) {
 	renderer2 := NewDiagramRenderer()
 	renderer2.AddNode("X", "NodeX")
 	renderer2.SetJunction("X", "*")
-	renderer2.SetCorner("X", "@")
+	renderer2.SetCorner("X", "@", "@")
 	renderer2.SetIntersection("X", "%")
 
 	renderer2.AddEdge("X", "1", "--> ")

@@ -8,10 +8,7 @@ import (
 
 // Const symbols for default consistent look
 const (
-	defaultArrow    = "-->" // Stem arrow
-	defaultJunction = "+"
-	defaultVertical = "│"
-	defaultLoop     = " 🔁"
+	defaultLoop = " 🔁"
 )
 
 // Node represents a node in the graph
@@ -39,8 +36,12 @@ type DiagramRenderer struct {
 
 	// Configuration
 	ArrowSymbol    string // 默认箭头符号,用于节点间连接
-	JunctionSymbol string
 	VerticalSymbol string
+
+	Junction     string // Custom junction symbol (defaults to global setting if empty)
+	CornerTop    string // Custom top corner symbol
+	CornerBottom string // Custom bottom corner symbol
+	Intersection string // Custom intersection symbol (middle branches)
 }
 
 // NewDiagramRenderer creates a new generic renderer
@@ -48,9 +49,12 @@ func NewDiagramRenderer() *DiagramRenderer {
 	return &DiagramRenderer{
 		nodes:          NewOrderedMap[string, Node](),
 		edges:          NewOrderedMap[string, []Edge](),
-		ArrowSymbol:    defaultArrow,
-		JunctionSymbol: defaultJunction,
-		VerticalSymbol: defaultVertical,
+		ArrowSymbol:    "-->",
+		VerticalSymbol: "│",
+		Junction:       "┤",
+		CornerTop:      "┌",
+		CornerBottom:   "└",
+		Intersection:   "├",
 	}
 }
 
@@ -80,11 +84,11 @@ func (r *DiagramRenderer) SetJunction(id, junction string) {
 }
 
 // SetCorner sets the symbol for BOTH top and bottom corners
-func (r *DiagramRenderer) SetCorner(id, symbol string) {
+func (r *DiagramRenderer) SetCorner(id, top, bottom string) {
 	r.ensureNode(id)
 	n, _ := r.nodes.Get(id)
-	n.CornerTop = symbol
-	n.CornerBottom = symbol
+	n.CornerTop = top
+	n.CornerBottom = bottom
 	r.nodes.Set(id, n)
 }
 
@@ -369,11 +373,10 @@ func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine
 	nodeContent := state
 
 	// Defaults
-	junctionSymbol := r.JunctionSymbol // The global default, e.g. "+"
-	stemSymbol := junctionSymbol       // Center Stem
-	cornerTopSymbol := junctionSymbol  // Top
-	cornerBotSymbol := junctionSymbol  // Bottom
-	interSymbol := junctionSymbol      // Middle intersections
+	stemSymbol := r.Junction          // Center Stem
+	cornerTopSymbol := r.CornerTop    // Top
+	cornerBotSymbol := r.CornerBottom // Bottom
+	interSymbol := r.Intersection     // Middle intersections
 
 	isApprovalStyle := false
 
