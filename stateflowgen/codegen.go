@@ -594,20 +594,67 @@ func (c *CodeGenerator) generateFlowDiagram(group *gg.Group) {
 	}
 
 	renderer := NewDiagramRenderer()
+	renderer.ArrowSymbol = "──"
 
-	// 添加所有流转到渲染器
+	// 收集可选审批的状态，用于自定义分支符号
 	for _, trans := range c.model.Transitions {
 		fromStr := c.formatStage(trans.From)
 		toStr := c.formatStage(trans.To)
 
-		if trans.Via.Phase != "" {
-			// 审批流转
+		if trans.ApprovalOptional && trans.Via.Phase != "" {
+			// 可选审批：创建中间判别节点
+			// from ──▶ 🔶<APPROVAL?> ──┬──▶ via (via) ──┬── <COMMIT> ──▶ to
+			//                          │                └── <REJECT> ──▶ fallback
+			//                          │
+			//                          └──▶ to (直接)
 			viaStr := c.formatStage(trans.Via)
 			fallbackStr := c.formatStage(trans.Fallback)
-			renderer.AddApprovalTransition(fromStr, viaStr, toStr, fallbackStr)
+
+			// 创建中间判别节点
+			decisionNode := fromStr + "_decision"
+			renderer.AddNode(decisionNode, "<?APPROVAL?>")
+			renderer.AddEdge(fromStr, decisionNode, "──▶ ")
+
+			// 1. 审批路径：decision -> via -> (Commit/Reject)
+			renderer.AddNode(viaStr, viaStr+" (via)")
+			renderer.AddEdge(decisionNode, viaStr, "──▶ ")
+
+			// via 分叉出 Commit 和 Reject
+			if toStr != "" {
+				renderer.AddEdge(viaStr, toStr, "── <COMMIT> ──▶ ")
+			}
+			if fallbackStr != "" {
+				renderer.AddEdge(viaStr, fallbackStr, "── <REJECT> ──▶ ")
+			}
+
+			// 2. 直接路径：decision -> to
+			renderer.AddEdge(decisionNode, toStr, "──▶ ")
+		} else if trans.Via.Phase != "" {
+			// 必须审批：从 from 分叉出三条边
+			//         ┌── <COMMIT> ──▶ to
+			//         │
+			// from ──┤──▶ via (via)
+			//         │
+			//         └── <REJECT> ──▶ fallback
+
+			viaStr := c.formatStage(trans.Via)
+			toStr := c.formatStage(trans.To)
+			fallbackStr := c.formatStage(trans.Fallback)
+
+			// 按顺序添加边：上(COMMIT)、下(REJECT)
+			if toStr != "" {
+				renderer.AddEdge(fromStr, toStr, "── <COMMIT> ──▶ ")
+			}
+
+			if fallbackStr != "" {
+				renderer.AddEdge(fromStr, fallbackStr, "── <REJECT> ──▶ ")
+			}
+
+			// 中间分支直接设置到 Junction
+			renderer.SetJunction(fromStr, "▶ "+viaStr+" (via)", "right")
 		} else {
 			// 直接流转
-			renderer.AddDirectTransition(fromStr, toStr)
+			renderer.AddEdge(fromStr, toStr, "──▶ ")
 		}
 	}
 
