@@ -9,23 +9,49 @@ import (
 
 // ================ stateflow ================
 
+// 流程图：
+// ```
+//                                                                                                        ┌──▶ deployed
+//                                                                                                        │
+//                                           ┌── <COMMIT> ──▶ creation_initiated ──▶ creation_submitted ──┤
+//                                           │                                                            │
+//                                           │                                                            └──▶ deploy_failed
+//                         ┌──▶ none (via) ──┤
+//                         │                 │
+//                         │                 │
+//                         │                 └── <REJECT> ──▶ none 🔁
+// none ──▶ <?APPROVAL?> ──┤
+//                         │
+//                         │                                                ┌──▶ deployed
+//                         │                                                │
+//                         └──▶ creation_initiated ──▶ creation_submitted ──┤
+//                                                                          │
+//                                                                          └──▶ deploy_failed
+// ```
+
 // Phase 阶段枚举
 type Phase string
 
 const (
-	PhaseNone             Phase = "none"
-	PhaseCreated          Phase = "created"
-	PhaseCreationRejected Phase = "creation_rejected"
+	PhaseNone              Phase = "none"
+	PhaseCreationInitiated Phase = "creation_initiated"
+	PhaseCreationSubmitted Phase = "creation_submitted"
+	PhaseDeployed          Phase = "deployed"
+	PhaseDeployFailed      Phase = "deploy_failed"
 )
 
 var PhaseEnums = struct {
-	None             Phase
-	Created          Phase
-	CreationRejected Phase
+	None              Phase
+	CreationInitiated Phase
+	CreationSubmitted Phase
+	Deployed          Phase
+	DeployFailed      Phase
 }{
-	None:             PhaseNone,
-	Created:          PhaseCreated,
-	CreationRejected: PhaseCreationRejected,
+	None:              PhaseNone,
+	CreationInitiated: PhaseCreationInitiated,
+	CreationSubmitted: PhaseCreationSubmitted,
+	Deployed:          PhaseDeployed,
+	DeployFailed:      PhaseDeployFailed,
 }
 
 // Stage 阶段（Phase + Status）
@@ -33,9 +59,11 @@ type Stage = Phase
 
 // 预定义阶段
 var (
-	StageNone             = PhaseNone
-	StageCreated          = PhaseCreated
-	StageCreationRejected = PhaseCreationRejected
+	StageNone              = PhaseNone
+	StageCreationInitiated = PhaseCreationInitiated
+	StageCreationSubmitted = PhaseCreationSubmitted
+	StageDeployed          = PhaseDeployed
+	StageDeployFailed      = PhaseDeployFailed
 )
 
 // PendingTransition 审批事务
@@ -82,13 +110,25 @@ func (s State) TransitionTo(to Stage, withApproval bool) (State, error) {
 	switch s.Current {
 	case StageNone:
 		switch to {
-		case StageCreated:
+		case StageCreationInitiated:
 			if withApproval {
 				if s.Pending != nil {
 					return s, ErrApprovalInProgress
 				}
-				return State{Current: StageNone, Pending: &PendingTransition{From: s.Current, To: to, Fallback: StageCreationRejected}}, nil
+				return State{Current: StageNone, Pending: &PendingTransition{From: s.Current, To: to, Fallback: StageNone}}, nil
 			}
+			return State{Current: to}, nil
+		}
+	case StageCreationInitiated:
+		switch to {
+		case StageCreationSubmitted:
+			return State{Current: to}, nil
+		}
+	case StageCreationSubmitted:
+		switch to {
+		case StageDeployed:
+			return State{Current: to}, nil
+		case StageDeployFailed:
 			return State{Current: to}, nil
 		}
 	}
@@ -116,7 +156,11 @@ func (s State) IsApprovalPending() bool {
 func (s State) ValidTransitions() []Stage {
 	switch s.Current {
 	case StageNone:
-		return []Stage{StageCreated}
+		return []Stage{StageCreationInitiated}
+	case StageCreationInitiated:
+		return []Stage{StageCreationSubmitted}
+	case StageCreationSubmitted:
+		return []Stage{StageDeployed, StageDeployFailed}
 	}
 	return nil
 }

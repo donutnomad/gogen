@@ -9,6 +9,31 @@ import (
 
 // ================ stateflow ================
 
+// 流程图：
+// ```
+//                                                                                                                                         ┌──▶ Ready(Enabled) 🔁
+//                                                                                                                                         │
+//                                                               ┌── <COMMIT> ──▶ Ready(Disabled) ──▶ Deleting (via)── <COMMIT> ──▶ Deleted
+//                                                               │                                                                         │
+//                                                               │                                                                         └── <REJECT> ──▶ Ready(Disabled) 🔁
+//                                                               │
+//                                                               ├── <REJECT> ──▶ Ready(Enabled) 🔁
+//                                                               │
+//                         ┌──▶ Ready(Enabled) ──▶ Deleting (via)
+//                         │                                     │
+//                         │                                     ├── <COMMIT> ──▶ Deleted
+//                         │                                     │
+//                         │                                     └── <REJECT> ──▶ Ready(Enabled) 🔁
+// Init ──▶ Provisioning ──┤
+//                         │
+//                         │
+//                         │                             ┌── <COMMIT> ──▶ Deleted
+//                         │                             │
+//                         └──▶ Failed ──▶ Deleting (via)
+//                                                       │
+//                                                       └── <REJECT> ──▶ Failed 🔁
+// ```
+
 // ServerPhase 阶段枚举
 type ServerPhase string
 

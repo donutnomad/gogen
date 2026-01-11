@@ -6,6 +6,6 @@ package self_transition
 // (=) 表示保持当前状态不变，常用于"刷新"或"重试"场景
 // @StateFlow(name="Connection")
 // @Flow: Disconnected => [ Connected ]
-// @Flow: Connected    => [ (=)? via Reconnecting ]
+// @Flow: Connected    => [ Connected? via Reconnecting ]
 // @Flow: Connected    => [ Disconnected ]
 const _ = ""

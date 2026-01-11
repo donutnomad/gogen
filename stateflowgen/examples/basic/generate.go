@@ -5,6 +5,11 @@ import "errors"
 
 // ================ stateflow ================
 
+// 流程图：
+// ```
+// Created ──▶ Paid ──▶ Shipped ──▶ Delivered ──▶ Completed
+// ```
+
 // OrderPhase 阶段枚举
 type OrderPhase string
 

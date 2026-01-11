@@ -616,15 +616,27 @@ func (c *CodeGenerator) generateFlowDiagram(group *gg.Group) {
 			renderer.AddEdge(fromStr, decisionNode, "──▶ ")
 
 			// 1. 审批路径：decision -> via -> (Commit/Reject)
-			renderer.AddNode(viaStr, viaStr+" (via)")
-			renderer.AddEdge(decisionNode, viaStr, "──▶ ")
+			// 如果 via 和 from 相同，使用 shadow 名字避免冲突
+			viaNodeID := viaStr
+			if viaStr == fromStr {
+				viaNodeID = viaStr + "_via"
+			}
+			renderer.AddNode(viaNodeID, viaStr+" (via)")
+			renderer.AddEdge(decisionNode, viaNodeID, "──▶ ")
 
 			// via 分叉出 Commit 和 Reject
 			if toStr != "" {
-				renderer.AddEdge(viaStr, toStr, "── <COMMIT> ──▶ ")
+				renderer.AddEdge(viaNodeID, toStr, "── <COMMIT> ──▶ ")
 			}
 			if fallbackStr != "" {
-				renderer.AddEdge(viaStr, fallbackStr, "── <REJECT> ──▶ ")
+				// 如果 fallback 和 from 相同，使用 shadow 节点显示回到原状态
+				if fallbackStr == fromStr {
+					fallbackNodeID := fallbackStr + "_fallback"
+					renderer.AddNode(fallbackNodeID, fallbackStr+" 🔁")
+					renderer.AddEdge(viaNodeID, fallbackNodeID, "── <REJECT> ──▶ ")
+				} else {
+					renderer.AddEdge(viaNodeID, fallbackStr, "── <REJECT> ──▶ ")
+				}
 			}
 
 			// 2. 直接路径：decision -> to

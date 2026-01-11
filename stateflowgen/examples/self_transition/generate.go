@@ -9,6 +9,24 @@ import (
 
 // ================ stateflow ================
 
+// 流程图：
+// ```
+//                                                                            ┌── <COMMIT> ──▶ Connected 🔁
+//                                                                            │
+//                                                  ┌──▶ Reconnecting (via) ──┤
+//                                                  │                         │
+//                                                  │                         └── <REJECT> ──▶ Connected 🔁
+//                              ┌──▶ <?APPROVAL?> ──┤
+//                              │                   │
+//                              │                   │
+//                              │                   └──▶ Connected 🔁
+// Disconnected ──▶ Connected ──┤
+//                              │
+//                              │
+//                              │
+//                              └──▶ Disconnected 🔁
+// ```
+
 // ConnectionPhase 阶段枚举
 type ConnectionPhase string
 

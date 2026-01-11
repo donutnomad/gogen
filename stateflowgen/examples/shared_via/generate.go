@@ -9,6 +9,24 @@ import (
 
 // ================ stateflow ================
 
+// 流程图：
+// ```
+//                                                                                                                    ┌── <COMMIT> ──▶ Archived ──▶ Deleted
+//                                                                                                                    │
+//                                                                        ┌── <COMMIT> ──▶ Updated ──▶ Reviewing (via)
+//                                                                        │                                           │
+//                                                                        │                                           └── <REJECT> ──▶ Updated 🔁
+//                          ┌── <COMMIT> ──▶ Published ──▶ Reviewing (via)
+//                          │                                             │
+//                          │                                             │
+//                          │                                             └── <REJECT> ──▶ Published 🔁
+// Draft ──▶ Reviewing (via)
+//                          │
+//                          │
+//                          │
+//                          └── <REJECT> ──▶ Draft 🔁
+// ```
+
 // ArticlePhase 阶段枚举
 type ArticlePhase string
 
