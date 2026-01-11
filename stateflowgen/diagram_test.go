@@ -239,13 +239,67 @@ func TestDiagramRenderer_ApprovalWithContinuation(t *testing.T) {
 	}
 }
 
-// 测试：自定义符号控制 (Test Custom Symbols)
+func TestDiagramRenderer_ApprovalWithContinuation2(t *testing.T) {
+	renderer := NewDiagramRenderer()
+	AddApprovalTransition(renderer, "Draft", "Reviewing", "Published", "Draft")
+	renderer.SetJunction("Draft", "xx", "right")
+	renderer.AddEdge("Published", "Archived", "--> ")
+
+	result := renderer.Render()
+	expected := strings.Join([]string{
+		"                           ┌-- <Commit> --> Published --> Archived",
+		"                           │",
+		"Draft -->xx Reviewing (via)",
+		"                           │",
+		"                           └-- <Reject> --> Draft 🔁",
+	}, "\n")
+
+	if result != expected {
+		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
+	}
+}
+
+// 测试：居中对齐分叉
+func TestDiagramRenderer_ApprovalWithContinuation3_Center(t *testing.T) {
+	renderer := NewDiagramRenderer()
+	AddApprovalTransition(renderer, "Draft", "Reviewing", "Published", "Draft")
+	renderer.SetJunction("Draft", "xx", "center")
+	renderer.AddEdge("Published", "Archived", "--> ")
+
+	result := renderer.Render()
+
+	// Calculation:
+	// "Draft -->" (9) + "xx" (2) = 11
+	// Center Content: " Reviewing (via)" (label " " + content)
+	// Label " " width 1.
+	// Content "Reviewing (via)" width 15.
+	// Total center branch added width = 1 + 15 = 16.
+
+	// IndentRef += stemSymbol ("xx") -> 11 chars base.
+	// IndentRef += centerLabel (" ") -> 12 chars.
+	// IndentRef += spaces(halfWidth of content). 15/2 = 7.
+	// Total indent = 12 + 7 = 19 spaces.
+
+	expected := strings.Join([]string{
+		"                 ┌-- <Commit> --> Published --> Archived",
+		"                 │",
+		"Draft -->xx Reviewing (via)",
+		"                 │",
+		"                 └-- <Reject> --> Draft 🔁",
+	}, "\n")
+
+	fmt.Println(result)
+	if result != expected {
+		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
+	}
+}
+
 func TestDiagramRenderer_CustomSymbols(t *testing.T) {
 	renderer := NewDiagramRenderer()
 
 	// Case 1: Odd branches (3) - Top/Bottom=Corner, Middle=Stem
 	renderer.AddNode("A", "NodeA")
-	renderer.SetJunction("A", "*")     // Stem
+	renderer.SetJunction("A", "*", "") // Stem
 	renderer.SetCorner("A", "@", "@")  // Top/Bottom
 	renderer.SetIntersection("A", "%") // Intermediate (won't appear in 3 branches)
 
@@ -272,7 +326,7 @@ func TestDiagramRenderer_CustomSymbols(t *testing.T) {
 	// Case 2: Even branches (4) - Top/Bot=Corner, Mids=Inter, Stem=Junction
 	renderer2 := NewDiagramRenderer()
 	renderer2.AddNode("X", "NodeX")
-	renderer2.SetJunction("X", "*")
+	renderer2.SetJunction("X", "*", "")
 	renderer2.SetCorner("X", "@", "@")
 	renderer2.SetIntersection("X", "%")
 

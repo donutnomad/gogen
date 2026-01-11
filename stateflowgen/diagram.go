@@ -20,6 +20,7 @@ type Node struct {
 	CornerBottom string // Custom bottom corner symbol
 	Intersection string // Custom intersection symbol (middle branches)
 	Style        string // "approval" = classic approval style (no junction on center branch)
+	Align        string // Alignment of branches relative to junction ("right" = branch from right)
 }
 
 // Edge represents a directed connection
@@ -75,11 +76,13 @@ func (r *DiagramRenderer) ensureNode(id string) {
 	}
 }
 
-// SetJunction sets a custom junction symbol for a node
-func (r *DiagramRenderer) SetJunction(id, junction string) {
+// SetJunction sets a custom junction symbol for a node and its alignment
+// align: "right" means branches start after the junction symbol
+func (r *DiagramRenderer) SetJunction(id, junction, align string) {
 	r.ensureNode(id)
 	n, _ := r.nodes.Get(id)
 	n.Junction = junction
+	n.Align = align
 	r.nodes.Set(id, n)
 }
 
@@ -222,7 +225,7 @@ func (r *DiagramRenderer) renderSingleTarget(state string, edge Edge, visited ma
 	// Label usually goes: Node -- Label --> Target
 	prefix := nodeContent + " " + edge.Label
 
-	indent := strings.Repeat(" ", runewidth.StringWidth(prefix))
+	indent := genSpace(prefix)
 
 	var result []string
 	for i, line := range subLines {
@@ -379,6 +382,7 @@ func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine
 	interSymbol := r.Intersection     // Middle intersections
 
 	isApprovalStyle := false
+	align := ""
 
 	if n, ok := r.nodes.Get(state); ok {
 		nodeContent = n.Content
@@ -397,11 +401,66 @@ func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine
 		if n.Style == "approval" {
 			isApprovalStyle = true
 		}
+		align = n.Align
 	}
 
 	// Stem prefix: "Node " + ArrowSymbol.
 	stemStr := nodeContent + " " + strings.TrimSpace(r.ArrowSymbol)
-	junctionIndent := strings.Repeat(" ", runewidth.StringWidth(stemStr))
+
+	// Calculate indentation base
+	indentRef := stemStr
+
+	if align == "right" {
+		// If right-aligned:
+		// 1. Always include the Stem Symbol (Junction)
+		indentRef += stemSymbol
+
+		// 2. If we have a center branch (Odd number), we ALSO include its content
+		//    This pushes the fork (vertical line) to the right of the center branch.
+		if len(branches)%2 == 1 {
+			midIdx := len(branches) / 2
+			centerBranch := branches[midIdx]
+
+			// Center Branch Content: Label + LineContent
+			// Note: We need the content of the anchor line of the center branch
+			centerLabel := centerBranch.edgeLabel
+			centerContent := centerBranch.lines[centerBranch.anchor]
+
+			indentRef += centerLabel + centerContent
+		}
+	} else if align == "center" {
+		// align="center": Center the fork relative to [Junction + Label + Content]
+		// Base is stemStr. indentation adds padding to reach the center of that block.
+
+		totalWidth := 0
+
+		// 1. Junction
+		totalWidth += runewidth.StringWidth(stemSymbol)
+
+		if len(branches)%2 == 1 {
+			midIdx := len(branches) / 2
+			centerBranch := branches[midIdx]
+
+			// 2. Label + Content
+			centerLabel := centerBranch.edgeLabel
+			centerContent := centerBranch.lines[centerBranch.anchor]
+
+			totalWidth += runewidth.StringWidth(centerLabel + centerContent)
+		}
+
+		// Calculate padding: (Total - 1) / 2
+		// Example: 18 chars. (18-1)/2 = 8 spaces.
+		// Resulting line is at 9th char (index 8).
+		if totalWidth > 0 {
+			pad := (totalWidth - 1) / 2
+			indentRef += strings.Repeat(" ", pad)
+		}
+	} else if align != "" {
+		// Other non-empty alignments (future proofing), simplistic behavior
+		indentRef += stemSymbol
+	}
+
+	junctionIndent := genSpace(indentRef)
 
 	var result []string
 
@@ -416,11 +475,16 @@ func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine
 				bIdx := lineData.branchIndex
 				label := branches[bIdx].edgeLabel
 
-				// Approval style: Don't render junction on center branch
+				// Approval style: Don't render junction on center branch if it's "approval" style?
+				// Actually, if we are shifting alignment, we usually want the stemSymbol rendered.
+				// The user's hack sets SetJunction("Node -> via").
+				// So we generally MUST render stemSymbol here.
 				centerJunction := stemSymbol
-				if isApprovalStyle {
+				if isApprovalStyle && align == "" { // Legacy behavior safeguard
 					centerJunction = ""
 				}
+				// If aligning right, we've implicitly accounted for stemSymbol in indentation of other lines.
+				// So we must render it here.
 
 				lineStr = stemStr + centerJunction + label + lineData.content
 			} else {
@@ -454,34 +518,7 @@ func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine
 				bIdx := lineData.branchIndex
 				label := branches[bIdx].edgeLabel
 
-				// Here we need indent matching the symbol above.
-				// Since symbol length might vary, we should ideally use len(currentSymbol).
-				// But we are inside the branch content lines, the symbol line was printed above.
-				// We'll assume symbol length 1 or use `junctionSymbol` length as fallback approximation
-				// or just use spaces equal to the indentation logic.
-				// The logic above was: strings.Repeat(" ", len(junctionSymbol)+len(label))
-				// Now symbols differ. We'll use stemSymbol's length or max?
-				// Usually these are 1 char. Let's use `stemSymbol` length for consistency with `junctionIndent`?
-				// No, subIndent depends on the `+` used in `+-->`.
-
-				// Wait, currentSymbol depends on i. But here we are in content lines for branch `bIdx`.
-				// We need to know which symbol was used for this branch's anchor.
-
-				// Logic check: content lines follow an anchor.
-				// The anchor used `currentSymbol`.
-				// So subIndent should technically allow for `len(currentSymbol) + len(label)`.
-
-				// Since this loop iterates lines, retrieving the specific symbol for the branch of this content line is tricky without tracking.
-				// However, usually these symbols are 1 char.
-				// Let's stick to `len(interSymbol)` or `len(cornerSymbol)`?
-				// Safe bet: len(junctionSymbol) (global default) if we assume monospaced single chars.
-				// Or better: The anchor line for this branch used a symbol.
-				// The indentation needs to align with `Indent + Symbol + Label`.
-				// So subIndent = " " * (len(Symbol) + len(Label)).
-
-				// Simplification for now: use len(interSymbol) as a proxy,
-				// assuming user won't set wildly different lengths for symbols.
-				subIndent := strings.Repeat(" ", runewidth.StringWidth(label))
+				subIndent := genSpace(label)
 
 				lineStr = junctionIndent + marker + subIndent + lineData.content
 			}
@@ -537,4 +574,17 @@ func copyVisited(visited map[string]bool) map[string]bool {
 		result[k] = v
 	}
 	return result
+}
+
+func genSpace(s string) string {
+	var sb strings.Builder
+	for _, r := range s {
+		w := runewidth.RuneWidth(r)
+		if w == 2 {
+			sb.WriteString("　")
+		} else {
+			sb.WriteString(strings.Repeat(" ", w))
+		}
+	}
+	return sb.String()
 }
