@@ -33,11 +33,8 @@ type Edge struct {
 
 // DiagramRenderer Generic ASCII diagram renderer
 type DiagramRenderer struct {
-	nodes map[string]Node
-	edges map[string][]Edge
-
-	// Track insertion order for deterministic root selection
-	nodeOrder []string
+	nodes *OrderedMap[string, Node]
+	edges *OrderedMap[string, []Edge]
 
 	// Configuration
 	JunctionSymbol string
@@ -47,8 +44,8 @@ type DiagramRenderer struct {
 // NewDiagramRenderer creates a new generic renderer
 func NewDiagramRenderer() *DiagramRenderer {
 	return &DiagramRenderer{
-		nodes:          make(map[string]Node),
-		edges:          make(map[string][]Edge),
+		nodes:          NewOrderedMap[string, Node](),
+		edges:          NewOrderedMap[string, []Edge](),
 		JunctionSymbol: defaultJunction,
 		VerticalSymbol: defaultVertical,
 	}
@@ -60,65 +57,64 @@ func (r *DiagramRenderer) AddNode(id, content string) {
 		content = id
 	}
 	r.ensureNode(id)
-	n := r.nodes[id]
+	n, _ := r.nodes.Get(id)
 	n.Content = content
-	r.nodes[id] = n
+	r.nodes.Set(id, n)
 }
 
 func (r *DiagramRenderer) ensureNode(id string) {
-	if _, ok := r.nodes[id]; !ok {
-		r.nodes[id] = Node{ID: id, Content: id}
-		r.nodeOrder = append(r.nodeOrder, id)
+	if !r.nodes.Has(id) {
+		r.nodes.Set(id, Node{ID: id, Content: id})
 	}
 }
 
 // SetJunction sets a custom junction symbol for a node
 func (r *DiagramRenderer) SetJunction(id, junction string) {
 	r.ensureNode(id)
-	n := r.nodes[id]
+	n, _ := r.nodes.Get(id)
 	n.Junction = junction
-	r.nodes[id] = n
+	r.nodes.Set(id, n)
 }
 
 // SetCorner sets the symbol for BOTH top and bottom corners
 func (r *DiagramRenderer) SetCorner(id, symbol string) {
 	r.ensureNode(id)
-	n := r.nodes[id]
+	n, _ := r.nodes.Get(id)
 	n.CornerTop = symbol
 	n.CornerBottom = symbol
-	r.nodes[id] = n
+	r.nodes.Set(id, n)
 }
 
 // SetCornerTop sets the symbol for the top corner
 func (r *DiagramRenderer) SetCornerTop(id, symbol string) {
 	r.ensureNode(id)
-	n := r.nodes[id]
+	n, _ := r.nodes.Get(id)
 	n.CornerTop = symbol
-	r.nodes[id] = n
+	r.nodes.Set(id, n)
 }
 
 // SetCornerBottom sets the symbol for the bottom corner
 func (r *DiagramRenderer) SetCornerBottom(id, symbol string) {
 	r.ensureNode(id)
-	n := r.nodes[id]
+	n, _ := r.nodes.Get(id)
 	n.CornerBottom = symbol
-	r.nodes[id] = n
+	r.nodes.Set(id, n)
 }
 
 // SetIntersection sets the symbol for intermediate branch points
 func (r *DiagramRenderer) SetIntersection(id, symbol string) {
 	r.ensureNode(id)
-	n := r.nodes[id]
+	n, _ := r.nodes.Get(id)
 	n.Intersection = symbol
-	r.nodes[id] = n
+	r.nodes.Set(id, n)
 }
 
 // SetNodeStyle sets render style for a node
 func (r *DiagramRenderer) SetNodeStyle(id, style string) {
 	r.ensureNode(id)
-	n := r.nodes[id]
+	n, _ := r.nodes.Get(id)
 	n.Style = style
-	r.nodes[id] = n
+	r.nodes.Set(id, n)
 }
 
 // AddEdge adds a directed edge
@@ -133,7 +129,8 @@ func (r *DiagramRenderer) AddEdge(from, to, label string) {
 		label = defaultEdgeLabel
 	}
 
-	r.edges[from] = append(r.edges[from], Edge{From: from, To: to, Label: label})
+	edges, _ := r.edges.Get(from)
+	r.edges.Set(from, append(edges, Edge{From: from, To: to, Label: label}))
 }
 
 // --- Compatibility API ---
@@ -178,57 +175,33 @@ func (r *DiagramRenderer) AddApprovalTransition(from, via, to, fallback string) 
 
 // Render generates the ASCII diagram
 func (r *DiagramRenderer) Render() string {
-	if len(r.nodes) == 0 {
+	if r.nodes.Len() == 0 {
 		return ""
 	}
 
-	// Heuristic: Find root (node with in-degree 0)
+	// 计算每个节点的入度
 	inDegree := make(map[string]int)
-	for _, edges := range r.edges {
+	for _, from := range r.edges.Keys() {
+		edges, _ := r.edges.Get(from)
 		for _, e := range edges {
 			inDegree[e.To]++
 		}
 	}
 
 	var root string
-	// Priority list for root candidates to ensure deterministic start
-	candidates := []string{"Start", "Draft", "Entry", "Init", "open", "Open"}
-
-	// 1. Check priority list with InDegree 0
-	for _, id := range candidates {
-		if _, ok := r.nodes[id]; ok && inDegree[id] == 0 {
+	// 按插入顺序查找第一个入度为 0 的节点
+	for _, id := range r.nodes.Keys() {
+		if inDegree[id] == 0 {
 			root = id
 			break
 		}
 	}
 
+	// 如果没有入度为 0 的节点(循环图),使用第一个插入的节点
 	if root == "" {
-		for id := range r.nodes {
-			if inDegree[id] == 0 {
-				root = id
-				break
-			}
-		}
-	}
-
-	// 3. Cycle interaction: Check priority list for ANY existence (even if InDegree > 0)
-	// This handles "open" in ComplexWorkflow loop or others
-	if root == "" {
-		for _, id := range candidates {
-			if _, ok := r.nodes[id]; ok {
-				root = id
-				break
-			}
-		}
-	}
-
-	if root == "" {
-		// Cycle? Pick the first added node for determinism (User Request)
-		for _, id := range r.nodeOrder {
-			if _, ok := r.nodes[id]; ok {
-				root = id
-				break
-			}
+		keys := r.nodes.Keys()
+		if len(keys) > 0 {
+			root = keys[0]
 		}
 	}
 
@@ -241,17 +214,17 @@ func (r *DiagramRenderer) renderFlow(state string, visited map[string]bool) ([]s
 	// Check loop
 	if visited[state] {
 		content := state
-		if n, ok := r.nodes[state]; ok {
+		if n, ok := r.nodes.Get(state); ok {
 			content = n.Content
 		}
 		return []string{content + defaultLoop}, 0
 	}
 
-	edges := r.edges[state]
+	edges, _ := r.edges.Get(state)
 	if len(edges) == 0 {
 		// Leaf
 		content := state
-		if n, ok := r.nodes[state]; ok {
+		if n, ok := r.nodes.Get(state); ok {
 			content = n.Content
 		}
 		return []string{content}, 0
@@ -270,7 +243,7 @@ func (r *DiagramRenderer) renderSingleTarget(state string, edge Edge, visited ma
 	subLines, subAnchor := r.renderFlow(edge.To, copyVisited(visited))
 
 	nodeContent := state
-	if n, ok := r.nodes[state]; ok {
+	if n, ok := r.nodes.Get(state); ok {
 		nodeContent = n.Content
 	}
 
@@ -436,7 +409,7 @@ func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine
 
 	isApprovalStyle := false
 
-	if n, ok := r.nodes[state]; ok {
+	if n, ok := r.nodes.Get(state); ok {
 		nodeContent = n.Content
 		if n.Junction != "" {
 			stemSymbol = n.Junction
