@@ -1,8 +1,11 @@
 package stateflowgen
 
 import (
+	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/pmezard/go-difflib/difflib"
 )
 
 // Helper to normalized expectation
@@ -443,41 +446,48 @@ func TestDiagramRenderer_DeepWithApproval(t *testing.T) {
 	result := renderer.Render()
 
 	expected := strings.Join([]string{
-		"                                                                                   +--> L7A --> L8A --> L9A --> End",
-		"                                                                                   │",
-		"                                                      +--> L4A --> L5A --> L6A -->+",
-		"                                                      │                            │",
-		"                                                      │                            +--> L7B --> L8B --> L9B --> End",
-		"                             +-- <Commit> --> L3A -->+",
-		"                             │                        │                            +-- <Commit> --> L7C --> L8C --> L9C --> End",
-		"                             │                        │                            │",
-		"                             │                        +--> L4B --> L5B --> L6B --> L6B_Review (via)",
-		"                             │                                                     │",
-		"                             │                                                     +-- <Reject> --> L6B 🔁",
-		"                             │",
+		"                                                                                +--> L7A --> L8A --> L9A --> End",
+		"                                                                                │",
+		"                                                    +--> L4A --> L5A --> L6A -->+",
+		"                                                    │                           │",
+		"                                                    │                           +--> L7B --> L8B --> L9B --> End",
+		"                            +-- <Commit> --> L3A -->+",
+		"                            │                       │                           +-- <Commit> --> L7C --> L8C --> L9C --> End",
+		"                            │                       │                           │",
+		"                            │                       +--> L4B --> L5B --> L6B --> L6B_Review (via)",
+		"                            │                                                   │",
+		"                            │                                                   +-- <Reject> --> L6B 🔁",
+		"                            │",
 		"                +--> L2A --> L2A_Review (via)",
-		"                │            │",
-		"                │            │",
-		"                │            │",
-		"                │            │",
-		"                │            │",
-		"                │            │",
-		"                │            +-- <Reject> --> L2A 🔁",
+		"                │           │",
+		"                │           │",
+		"                │           │",
+		"                │           │",
+		"                │           │",
+		"                │           │",
+		"                │           +-- <Reject> --> L2A 🔁",
 		"Start --> L1 -->+",
 		"                │",
 		"                │",
-		"                │                         +-- <Commit> --> L4C --> L5C --> L6C --> L7D --> L8D --> L9D --> End",
-		"                │                         │",
-		"                │            +--> L3B --> L3B_Review (via)",
-		"                │            │            │",
-		"                │            │            +-- <Reject> --> L3B 🔁",
+		"                │                       +-- <Commit> --> L4C --> L5C --> L6C --> L7D --> L8D --> L9D --> End",
+		"                │                       │",
+		"                │           +--> L3B --> L3B_Review (via)",
+		"                │           │           │",
+		"                │           │           +-- <Reject> --> L3B 🔁",
 		"                +--> L2B -->+",
-		"                             │",
-		"                             │",
-		"                             +--> L3C --> L4D --> L5D --> L6D --> L7E --> L8E --> L9E --> End",
+		"                            │",
+		"                            │",
+		"                            +--> L3C --> L4D --> L5D --> L6D --> L7E --> L8E --> L9E --> End",
 	}, "\n")
 
 	if result != expected {
+		diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+			A:        difflib.SplitLines(expected),
+			B:        difflib.SplitLines(result),
+			FromFile: "Original",
+			ToFile:   "Current",
+		})
+		fmt.Print(diff)
 		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
 	}
 }

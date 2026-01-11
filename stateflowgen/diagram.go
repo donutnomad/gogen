@@ -537,7 +537,7 @@ func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine
 
 				// Simplification for now: use len(interSymbol) as a proxy,
 				// assuming user won't set wildly different lengths for symbols.
-				subIndent := strings.Repeat(" ", len(interSymbol)+len(label))
+				subIndent := strings.Repeat(" ", len(label))
 
 				lineStr = junctionIndent + marker + subIndent + lineData.content
 			}
