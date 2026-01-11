@@ -67,11 +67,11 @@ func TestDiagramRenderer_TwoBranches(t *testing.T) {
 	result := renderer.Render()
 	// 2个分支：B, |, C = 3行，中心行=1
 	expected := strings.Join([]string{
-		"     +--> B",
+		"     ┌--> B",
 		"     │",
-		"A -->+",
+		"A -->┤",
 		"     │",
-		"     +--> C",
+		"     └--> C",
 	}, "\n")
 
 	if result != expected {
@@ -89,11 +89,11 @@ func TestDiagramRenderer_ThreeBranches(t *testing.T) {
 	result := renderer.Render()
 	// 3个分支：B, |, C, |, D = 5行
 	expected := strings.Join([]string{
-		"     +--> B",
+		"     ┌--> B",
 		"     │",
-		"A -->+--> C",
+		"A -->┤--> C",
 		"     │",
-		"     +--> D",
+		"     └--> D",
 	}, "\n")
 
 	if result != expected {
@@ -111,15 +111,15 @@ func TestDiagramRenderer_FourBranches(t *testing.T) {
 
 	result := renderer.Render()
 	expected := strings.Join([]string{
-		"     +--> B",
+		"     ┌--> B",
 		"     │",
-		"     +--> C",
+		"     ├--> C",
 		"     │",
-		"A -->+",
+		"A -->┤",
 		"     │",
-		"     +--> D",
+		"     ├--> D",
 		"     │",
-		"     +--> E",
+		"     └--> E",
 	}, "\n")
 
 	if result != expected {
@@ -137,11 +137,11 @@ func TestDiagramRenderer_NestedBranches(t *testing.T) {
 
 	result := renderer.Render()
 	expected := strings.Join([]string{
-		"           +--> C --> E",
+		"           ┌--> C --> E",
 		"           │",
-		"A --> B -->+",
+		"A --> B -->┤",
 		"           │",
-		"           +--> D",
+		"           └--> D",
 	}, "\n")
 
 	if result != expected {
@@ -187,11 +187,11 @@ func TestDiagramRenderer_ComplexWorkflow(t *testing.T) {
 
 	result := renderer.Render()
 	expected := strings.Join([]string{
-		"                    +--> resolved --> closed",
+		"                    ┌--> resolved --> closed",
 		"                    │",
-		"open --> pending -->+",
+		"open --> pending -->┤",
 		"                    │",
-		"                    +--> rejected --> open 🔁",
+		"                    └--> rejected --> open 🔁",
 	}, "\n")
 
 	if result != expected {
@@ -207,11 +207,11 @@ func TestDiagramRenderer_ApprovalTransition(t *testing.T) {
 	result := renderer.Render()
 	// Legacy style: "Draft --> Reviewing (via)"
 	expected := strings.Join([]string{
-		"         +-- <Commit> --> Published",
+		"         ┌-- <Commit> --> Published",
 		"         │",
 		"Draft --> Reviewing (via)",
 		"         │",
-		"         +-- <Reject> --> Draft 🔁",
+		"         └-- <Reject> --> Draft 🔁",
 	}, "\n")
 
 	if result != expected {
@@ -227,11 +227,11 @@ func TestDiagramRenderer_ApprovalWithContinuation(t *testing.T) {
 
 	result := renderer.Render()
 	expected := strings.Join([]string{
-		"         +-- <Commit> --> Published --> Archived",
+		"         ┌-- <Commit> --> Published --> Archived",
 		"         │",
 		"Draft --> Reviewing (via)",
 		"         │",
-		"         +-- <Reject> --> Draft 🔁",
+		"         └-- <Reject> --> Draft 🔁",
 	}, "\n")
 
 	if result != expected {
@@ -322,7 +322,7 @@ func TestDiagramRenderer_SplitCorners(t *testing.T) {
 	expected := strings.Join([]string{
 		"        T--> 1",
 		"        │",
-		"Root -->+--> 2",
+		"Root -->┤--> 2",
 		"        │",
 		"        B--> 3",
 	}, "\n")
@@ -468,38 +468,38 @@ func TestDiagramRenderer_DeepWithApproval(t *testing.T) {
 	result := renderer.Render()
 
 	expected := strings.Join([]string{
-		"                                                                                +--> L7A --> L8A --> L9A --> End",
+		"                                                                                ┌--> L7A --> L8A --> L9A --> End",
 		"                                                                                │",
-		"                                                    +--> L4A --> L5A --> L6A -->+",
+		"                                                    ┌--> L4A --> L5A --> L6A -->┤",
 		"                                                    │                           │",
-		"                                                    │                           +--> L7B --> L8B --> L9B --> End",
-		"                            +-- <Commit> --> L3A -->+",
-		"                            │                       │                           +-- <Commit> --> L7C --> L8C --> L9C --> End",
+		"                                                    │                           └--> L7B --> L8B --> L9B --> End",
+		"                            ┌-- <Commit> --> L3A -->┤",
+		"                            │                       │                           ┌-- <Commit> --> L7C --> L8C --> L9C --> End",
 		"                            │                       │                           │",
-		"                            │                       +--> L4B --> L5B --> L6B --> L6B_Review (via)",
+		"                            │                       └--> L4B --> L5B --> L6B --> L6B_Review (via)",
 		"                            │                                                   │",
-		"                            │                                                   +-- <Reject> --> L6B 🔁",
+		"                            │                                                   └-- <Reject> --> L6B 🔁",
 		"                            │",
-		"                +--> L2A --> L2A_Review (via)",
+		"                ┌--> L2A --> L2A_Review (via)",
 		"                │           │",
 		"                │           │",
 		"                │           │",
 		"                │           │",
 		"                │           │",
 		"                │           │",
-		"                │           +-- <Reject> --> L2A 🔁",
-		"Start --> L1 -->+",
+		"                │           └-- <Reject> --> L2A 🔁",
+		"Start --> L1 -->┤",
 		"                │",
 		"                │",
-		"                │                       +-- <Commit> --> L4C --> L5C --> L6C --> L7D --> L8D --> L9D --> End",
+		"                │                       ┌-- <Commit> --> L4C --> L5C --> L6C --> L7D --> L8D --> L9D --> End",
 		"                │                       │",
-		"                │           +--> L3B --> L3B_Review (via)",
+		"                │           ┌--> L3B --> L3B_Review (via)",
 		"                │           │           │",
-		"                │           │           +-- <Reject> --> L3B 🔁",
-		"                +--> L2B -->+",
+		"                │           │           └-- <Reject> --> L3B 🔁",
+		"                └--> L2B -->┤",
 		"                            │",
 		"                            │",
-		"                            +--> L3C --> L4D --> L5D --> L6D --> L7E --> L8E --> L9E --> End",
+		"                            └--> L3C --> L4D --> L5D --> L6D --> L7E --> L8E --> L9E --> End",
 	}, "\n")
 
 	if result != expected {
