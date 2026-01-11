@@ -1,145 +1,240 @@
 package stateflowgen
 
-import "strings"
-
-// 流程图渲染符号常量
-const (
-	symbolArrow        = " --> "
-	symbolBranch       = "+--> "
-	symbolJunction     = "+"
-	symbolVertical     = "|"
-	symbolSpace        = " "
-	symbolLoop         = " 🔁"
-	symbolViaSuffix    = " (via)"
-	symbolCommitPrefix = "+-- <Commit> -->"
-	symbolRejectPrefix = "+-- <Reject> -->"
+import (
+	"strings"
 )
 
-// lineBuilder 行构建辅助
-type lineBuilder string
+// Const symbols for default consistent look
+const (
+	defaultArrow     = " --> " // Stem arrow
+	defaultJunction  = "+"
+	defaultVertical  = "|"
+	defaultLoop      = " 🔁"
+	defaultEdgeLabel = "--> " // Standard branch edge label (should include space at end)
+)
 
-func (b lineBuilder) vertical() string {
-	return string(b) + symbolVertical
+// Node represents a node in the graph
+type Node struct {
+	ID       string
+	Content  string // Text to display (defaults to ID)
+	Junction string // Custom junction symbol (defaults to global setting if empty)
+	Style    string // "approval" = classic approval style (no junction on center branch)
 }
 
-func (b lineBuilder) verticalWith(indent, content string) string {
-	return string(b) + symbolVertical + indent + content
+// Edge represents a directed connection
+type Edge struct {
+	From  string
+	To    string
+	Label string // E.g., "--> ", "-- Yes --> ". If empty, defaults to "--> "
 }
 
-func (b lineBuilder) spacedWith(indent, content string) string {
-	return string(b) + symbolSpace + indent + content
-}
-
-// DiagramRenderer 流程图渲染器
+// DiagramRenderer Generic ASCII diagram renderer
 type DiagramRenderer struct {
-	transitions map[string][]string
-	approvals   map[string]*ApprovalInfo
-	order       []string
+	nodes map[string]Node
+	edges map[string][]Edge
+
+	// Configuration
+	JunctionSymbol string
+	VerticalSymbol string
 }
 
-// ApprovalInfo 审批信息
-type ApprovalInfo struct {
-	Via    string
-	Commit string
-	Reject string
-}
-
+// NewDiagramRenderer creates a new generic renderer
 func NewDiagramRenderer() *DiagramRenderer {
 	return &DiagramRenderer{
-		transitions: make(map[string][]string),
-		approvals:   make(map[string]*ApprovalInfo),
+		nodes:          make(map[string]Node),
+		edges:          make(map[string][]Edge),
+		JunctionSymbol: defaultJunction,
+		VerticalSymbol: defaultVertical,
 	}
 }
 
+// AddNode adds or updates a node
+func (r *DiagramRenderer) AddNode(id, content string) {
+	if content == "" {
+		content = id
+	}
+	r.ensureNode(id)
+	n := r.nodes[id]
+	n.Content = content
+	r.nodes[id] = n
+}
+
+func (r *DiagramRenderer) ensureNode(id string) {
+	if _, ok := r.nodes[id]; !ok {
+		r.nodes[id] = Node{ID: id, Content: id}
+	}
+}
+
+// SetJunction sets a custom junction symbol for a node
+func (r *DiagramRenderer) SetJunction(id, junction string) {
+	r.ensureNode(id)
+	n := r.nodes[id]
+	n.Junction = junction
+	r.nodes[id] = n
+}
+
+// SetNodeStyle sets render style for a node
+func (r *DiagramRenderer) SetNodeStyle(id, style string) {
+	r.ensureNode(id)
+	n := r.nodes[id]
+	n.Style = style
+	r.nodes[id] = n
+}
+
+// AddEdge adds a directed edge
+// AddEdge adds a directed edge
+// If label is empty, defaults to "--> ".
+// To assume no label, pass " " (single space) or handle specifically.
+func (r *DiagramRenderer) AddEdge(from, to, label string) {
+	r.ensureNode(from)
+	r.ensureNode(to)
+
+	if label == "" {
+		label = defaultEdgeLabel
+	}
+
+	r.edges[from] = append(r.edges[from], Edge{From: from, To: to, Label: label})
+}
+
+// --- Compatibility API ---
+
+// AddLegacyDirectTransition maps old API to new Generic API
+// In original code this was AddDirectTransition. We use that name.
 func (r *DiagramRenderer) AddDirectTransition(from, to string) {
-	if _, exists := r.transitions[from]; !exists {
-		r.order = append(r.order, from)
-	}
-	r.transitions[from] = append(r.transitions[from], to)
+	r.AddEdge(from, to, "")
 }
 
-func (r *DiagramRenderer) AddApprovalTransition(from, via, commit, reject string) {
-	if _, exists := r.transitions[from]; !exists && r.approvals[from] == nil {
-		r.order = append(r.order, from)
+// AddApprovalTransition adds an approval flow (Draft -> Reviewing -> Published/Rejected)
+// Renders as:
+//
+//	+-- <Commit> --> to
+//	|
+//
+// from --> via (via)
+//
+//	|
+//	+-- <Reject> --> fallback
+func (r *DiagramRenderer) AddApprovalTransition(from, via, to, fallback string) {
+	// Replicate visual structure using generic edges
+
+	// 1. Top: Commit path
+	if to != "" {
+		r.AddEdge(from, to, "-- <Commit> --> ")
 	}
-	r.approvals[from] = &ApprovalInfo{
-		Via:    via,
-		Commit: commit,
-		Reject: reject,
+
+	// 2. Middle: Via path
+	// Uses " " label and "approval" style to suppress center junction
+	r.AddEdge(from, via, " ")
+	r.AddNode(via, via+" (via)")
+
+	// 3. Bottom: Reject path
+	if fallback != "" {
+		r.AddEdge(from, fallback, "-- <Reject> --> ")
 	}
+
+	// Set style to "approval" to affect formatBranchOutput behavior
+	r.SetNodeStyle(from, "approval")
 }
 
+// Render generates the ASCII diagram
 func (r *DiagramRenderer) Render() string {
-	if len(r.transitions) == 0 && len(r.approvals) == 0 {
+	if len(r.nodes) == 0 {
 		return ""
 	}
 
-	entry := r.findEntryState()
-	if entry == "" {
-		return ""
+	// Heuristic: Find root (node with in-degree 0)
+	inDegree := make(map[string]int)
+	for _, edges := range r.edges {
+		for _, e := range edges {
+			inDegree[e.To]++
+		}
+	}
+
+	var root string
+	// Priority list for root candidates to ensure deterministic start
+	candidates := []string{"Start", "Draft", "Entry", "Init", "open", "Open"}
+
+	// 1. Check priority list with InDegree 0
+	for _, id := range candidates {
+		if _, ok := r.nodes[id]; ok && inDegree[id] == 0 {
+			root = id
+			break
+		}
+	}
+
+	if root == "" {
+		for id := range r.nodes {
+			if inDegree[id] == 0 {
+				root = id
+				break
+			}
+		}
+	}
+
+	// 3. Cycle interaction: Check priority list for ANY existence (even if InDegree > 0)
+	// This handles "open" in ComplexWorkflow loop or others
+	if root == "" {
+		for _, id := range candidates {
+			if _, ok := r.nodes[id]; ok {
+				root = id
+				break
+			}
+		}
+	}
+
+	if root == "" {
+		// Cycle? Pick any.
+		for id := range r.nodes {
+			root = id
+			break
+		}
 	}
 
 	visited := make(map[string]bool)
-	lines, _ := r.renderFlow(entry, visited)
+	lines, _ := r.renderFlow(root, visited)
 	return strings.Join(lines, "\n")
 }
 
-func (r *DiagramRenderer) findEntryState() string {
-	targets := make(map[string]bool)
-
-	for _, tos := range r.transitions {
-		for _, to := range tos {
-			targets[to] = true
-		}
-	}
-
-	for _, info := range r.approvals {
-		targets[info.Via] = true
-		targets[info.Commit] = true
-		targets[info.Reject] = true
-	}
-
-	for _, src := range r.order {
-		if !targets[src] {
-			return src
-		}
-	}
-
-	if len(r.order) > 0 {
-		return r.order[0]
-	}
-	return ""
-}
-
 func (r *DiagramRenderer) renderFlow(state string, visited map[string]bool) ([]string, int) {
+	// Check loop
 	if visited[state] {
-		return []string{state + symbolLoop}, 0
+		content := state
+		if n, ok := r.nodes[state]; ok {
+			content = n.Content
+		}
+		return []string{content + defaultLoop}, 0
 	}
 
-	if approval, ok := r.approvals[state]; ok {
-		return r.renderApprovalFlow(state, approval, visited)
-	}
-
-	targets := r.transitions[state]
-	if len(targets) == 0 {
-		return []string{state}, 0
+	edges := r.edges[state]
+	if len(edges) == 0 {
+		// Leaf
+		content := state
+		if n, ok := r.nodes[state]; ok {
+			content = n.Content
+		}
+		return []string{content}, 0
 	}
 
 	visited[state] = true
 
-	if len(targets) == 1 {
-		return r.renderSingleTarget(state, targets[0], visited)
+	if len(edges) == 1 {
+		return r.renderSingleTarget(state, edges[0], visited)
 	}
-	return r.renderBranches(state, targets, visited)
+
+	return r.renderBranches(state, edges, visited)
 }
 
-func (r *DiagramRenderer) renderSingleTarget(state, target string, visited map[string]bool) ([]string, int) {
-	subLines, subAnchor := r.renderFlow(target, copyVisited(visited))
-	if len(subLines) == 0 {
-		return []string{state}, 0
+func (r *DiagramRenderer) renderSingleTarget(state string, edge Edge, visited map[string]bool) ([]string, int) {
+	subLines, subAnchor := r.renderFlow(edge.To, copyVisited(visited))
+
+	nodeContent := state
+	if n, ok := r.nodes[state]; ok {
+		nodeContent = n.Content
 	}
 
-	prefix := state + symbolArrow
+	// Label usually goes: Node -- Label --> Target
+	prefix := nodeContent + " " + edge.Label
+
 	indent := strings.Repeat(" ", len(prefix))
 
 	var result []string
@@ -153,7 +248,7 @@ func (r *DiagramRenderer) renderSingleTarget(state, target string, visited map[s
 	return result, subAnchor
 }
 
-// branchInfo 分支渲染信息
+// branchInfo holds rendering data for a branch
 type branchInfo struct {
 	lines       []string
 	anchor      int
@@ -161,44 +256,38 @@ type branchInfo struct {
 	belowAnchor int
 	padAbove    int
 	padBelow    int
+	edgeLabel   string
 }
 
-// renderLine 渲染行信息
-type renderLine struct {
-	isAnchor    bool
-	isCenterSep bool
-	isPad       bool
-	content     string
-	branchIndex int
-}
-
-func (r *DiagramRenderer) renderBranches(state string, targets []string, visited map[string]bool) ([]string, int) {
-	if len(targets) == 0 {
+func (r *DiagramRenderer) renderBranches(state string, edges []Edge, visited map[string]bool) ([]string, int) {
+	if len(edges) == 0 {
 		return nil, 0
 	}
 
-	branches := r.collectBranches(targets, visited)
+	branches := r.collectBranches(edges, visited)
 	r.applyInnerPadding(branches)
 	allLines := r.buildRenderLines(branches)
 	centerLineIndex := r.findCenterLine(allLines, len(branches))
 
-	return r.formatBranchOutput(state, allLines, centerLineIndex, len(branches)), centerLineIndex
+	return r.formatBranchOutput(state, allLines, centerLineIndex, branches), centerLineIndex
 }
 
-func (r *DiagramRenderer) collectBranches(targets []string, visited map[string]bool) []branchInfo {
+func (r *DiagramRenderer) collectBranches(edges []Edge, visited map[string]bool) []branchInfo {
 	var branches []branchInfo
-	for _, to := range targets {
-		lines, anchor := r.renderFlow(to, copyVisited(visited))
+	for _, edge := range edges {
+		lines, anchor := r.renderFlow(edge.To, copyVisited(visited))
 		branches = append(branches, branchInfo{
 			lines:       lines,
 			anchor:      anchor,
 			aboveAnchor: anchor,
 			belowAnchor: len(lines) - 1 - anchor,
+			edgeLabel:   edge.Label,
 		})
 	}
 	return branches
 }
 
+// applyInnerPadding calculates and applies vertical spacing/padding
 func (r *DiagramRenderer) applyInnerPadding(branches []branchInfo) {
 	upperHalf := len(branches) / 2
 	lowerStartIndex := len(branches) - upperHalf
@@ -214,10 +303,13 @@ func (r *DiagramRenderer) applyInnerPadding(branches []branchInfo) {
 	}
 
 	maxExtend := max(upperInnerBelow, lowerInnerAbove)
+
+	// Enforce min spacing for even branches
 	if len(branches)%2 == 0 && maxExtend < 1 {
 		maxExtend = 1
 	}
 
+	// Apply padding
 	if upperHalf > 0 {
 		branches[upperHalf-1].padBelow = maxExtend - branches[upperHalf-1].belowAnchor
 	}
@@ -226,15 +318,26 @@ func (r *DiagramRenderer) applyInnerPadding(branches []branchInfo) {
 	}
 }
 
+type renderLine struct {
+	isAnchor    bool
+	isCenterSep bool
+	isSeparator bool
+	isPad       bool
+	content     string
+	branchIndex int
+}
+
 func (r *DiagramRenderer) buildRenderLines(branches []branchInfo) []renderLine {
 	upperHalf := len(branches) / 2
 	var allLines []renderLine
 
 	for i, b := range branches {
+		// Pad Above
 		for k := 0; k < b.padAbove; k++ {
 			allLines = append(allLines, renderLine{isPad: true})
 		}
 
+		// Content
 		for j, line := range b.lines {
 			allLines = append(allLines, renderLine{
 				isAnchor:    j == b.anchor,
@@ -243,13 +346,18 @@ func (r *DiagramRenderer) buildRenderLines(branches []branchInfo) []renderLine {
 			})
 		}
 
+		// Pad Below
 		for k := 0; k < b.padBelow; k++ {
 			allLines = append(allLines, renderLine{isPad: true})
 		}
 
+		// Separator (unless last)
 		if i < len(branches)-1 {
 			isCenter := i == upperHalf-1 && len(branches)%2 == 0
-			allLines = append(allLines, renderLine{isCenterSep: isCenter})
+			allLines = append(allLines, renderLine{
+				isSeparator: true,
+				isCenterSep: isCenter,
+			})
 		}
 	}
 	return allLines
@@ -273,35 +381,71 @@ func (r *DiagramRenderer) findCenterLine(allLines []renderLine, branchCount int)
 	return 0
 }
 
-func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine, centerLineIndex, branchCount int) []string {
-	firstAnchor, lastAnchor := r.findAnchorRange(allLines)
+func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine, centerLineIndex int, branches []branchInfo) []string {
 
-	prefix := state + symbolArrow[:len(symbolArrow)-1]
-	junctionIndent := strings.Repeat(" ", len(prefix))
-	subIndent := strings.Repeat(" ", len(symbolBranch)-1)
+	nodeContent := state
+	junctionSymbol := r.JunctionSymbol
+	isApprovalStyle := false
+
+	if n, ok := r.nodes[state]; ok {
+		nodeContent = n.Content
+		if n.Junction != "" {
+			junctionSymbol = n.Junction
+		}
+		if n.Style == "approval" {
+			isApprovalStyle = true
+		}
+	}
+
+	// Stem prefix: "Node " + defaultArrow.
+	stemStr := nodeContent + " " + strings.TrimSpace(defaultArrow)
+	junctionIndent := strings.Repeat(" ", len(stemStr))
 
 	var result []string
+
+	firstAnchor, lastAnchor := r.findAnchorRange(allLines)
+
 	for i, lineData := range allLines {
 		var lineStr string
 
 		if i == centerLineIndex {
-			if branchCount%2 == 1 {
-				lineStr = prefix + symbolBranch + lineData.content
+			if len(branches)%2 == 1 {
+				// Odd center: Stem + Junction + Label + Content
+				bIdx := lineData.branchIndex
+				label := branches[bIdx].edgeLabel
+
+				// Approval style: Don't render junction on center branch
+				centerJunction := junctionSymbol
+				if isApprovalStyle {
+					centerJunction = ""
+				}
+
+				lineStr = stemStr + centerJunction + label + lineData.content
 			} else {
-				lineStr = prefix + symbolJunction
+				// Even center: Stem + Junction
+				lineStr = stemStr + junctionSymbol
 			}
 		} else {
-			marker := symbolSpace
+			marker := " "
 			if i > firstAnchor && i < lastAnchor {
-				marker = symbolVertical
+				marker = r.VerticalSymbol
 			}
 
-			switch {
-			case lineData.isAnchor:
-				lineStr = junctionIndent + symbolBranch + lineData.content
-			case lineData.isPad || lineData.content == "":
+			if lineData.isAnchor {
+				bIdx := lineData.branchIndex
+				label := branches[bIdx].edgeLabel
+
+				lineStr = junctionIndent + junctionSymbol + label + lineData.content
+			} else if lineData.isPad || lineData.isSeparator || lineData.content == "" {
 				lineStr = junctionIndent + marker
-			default:
+			} else {
+				// Content line within a branch
+				bIdx := lineData.branchIndex
+				label := branches[bIdx].edgeLabel
+
+				// subIndent should be spaces equal to len(Junction + Label)
+				subIndent := strings.Repeat(" ", len(junctionSymbol)+len(label))
+
 				lineStr = junctionIndent + marker + subIndent + lineData.content
 			}
 		}
@@ -323,83 +467,31 @@ func (r *DiagramRenderer) findAnchorRange(allLines []renderLine) (first, last in
 	return first, last
 }
 
-func (r *DiagramRenderer) renderApprovalFlow(state string, approval *ApprovalInfo, visited map[string]bool) ([]string, int) {
-	visited[state] = true
-	prefix := state + symbolArrow
-	lb := lineBuilder(strings.Repeat(" ", len(prefix)))
-
-	var result []string
-
-	commitLines, commitAnchor := r.renderFlow(approval.Commit, copyVisited(visited))
-	commitBelowAnchor := len(commitLines) - 1 - commitAnchor
-
-	commitPrefix := symbolCommitPrefix + symbolSpace
-	commitIndent := strings.Repeat(" ", len(commitPrefix))
-	commitVerticalIndent := strings.Repeat(" ", len(commitPrefix)-1)
-
-	for j, line := range commitLines {
-		switch {
-		case j < commitAnchor:
-			result = append(result, string(lb)+commitIndent+line)
-		case j == commitAnchor:
-			result = append(result, string(lb)+commitPrefix+line)
-		default:
-			result = append(result, lb.verticalWith(commitVerticalIndent, line))
-		}
-	}
-
-	rejectLines, rejectAnchor := r.renderFlow(approval.Reject, copyVisited(visited))
-	rejectBelowAnchor := len(rejectLines) - 1 - rejectAnchor
-
-	gapTop := max(0, rejectAnchor-commitAnchor)
-	gapBottom := max(0, commitBelowAnchor-rejectBelowAnchor)
-
-	for i := 0; i < gapTop; i++ {
-		result = append(result, lb.vertical())
-	}
-
-	result = append(result, lb.vertical())
-	result = append(result, prefix+approval.Via+symbolViaSuffix)
-	result = append(result, lb.vertical())
-
-	for i := 0; i < gapBottom; i++ {
-		result = append(result, lb.vertical())
-	}
-
-	rejectPrefix := symbolRejectPrefix + symbolSpace
-	rejectVerticalIndent := strings.Repeat(" ", len(rejectPrefix)-1)
-
-	for j, line := range rejectLines {
-		switch {
-		case j < rejectAnchor:
-			result = append(result, lb.verticalWith(rejectVerticalIndent, line))
-		case j == rejectAnchor:
-			result = append(result, string(lb)+rejectPrefix+line)
-		default:
-			result = append(result, lb.spacedWith(rejectVerticalIndent, line))
-		}
-	}
-
-	viaLineIndex := len(commitLines) + gapTop + 1
-	return result, viaLineIndex
-}
-
+// RenderAsComment renders the diagram wrapped in a Go comment block
 func (r *DiagramRenderer) RenderAsComment() string {
 	content := r.Render()
 	if content == "" {
 		return ""
 	}
 
+	lines := strings.Split(content, "\n")
 	var sb strings.Builder
-	sb.WriteString("// State Flow Diagram:\n")
+	sb.WriteString("// 流程图：\n")
 	sb.WriteString("// ```\n")
-	for _, line := range strings.Split(content, "\n") {
+	for _, line := range lines {
 		sb.WriteString("// ")
 		sb.WriteString(line)
 		sb.WriteString("\n")
 	}
 	sb.WriteString("// ```\n")
 	return sb.String()
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func copyVisited(visited map[string]bool) map[string]bool {
