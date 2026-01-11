@@ -787,13 +787,15 @@ func (s *Scanner) parseVarConstDecl(fset *token.FileSet, filePath, packageName s
 		}
 
 		for _, name := range valueSpec.Names {
-			if name.Name == "_" {
-				continue // 跳过匿名变量
+			targetName := name.Name
+			if targetName == "_" {
+				// 匿名变量使用特殊名称，允许作为注解载体
+				targetName = "_blank_"
 			}
 
 			target := &Target{
 				Kind:        kind,
-				Name:        name.Name,
+				Name:        targetName,
 				PackageName: packageName,
 				FilePath:    filePath,
 				Position:    name.Pos(), // 使用具体变量名的位置
