@@ -28,6 +28,9 @@ func NewCodeGenerator(model *StateModel, packageName string) *CodeGenerator {
 func (c *CodeGenerator) Generate() (*gg.Generator, error) {
 	group := c.gen.Body()
 
+	// 生成流程图注释
+	c.generateFlowDiagram(group)
+
 	// 生成 Phase 枚举
 	c.generatePhaseEnum(group)
 
@@ -582,4 +585,43 @@ func (c *CodeGenerator) generateFromColumnsMethod(group *gg.Group) {
 
 	fn.AddBody(gg.S("return %s{\n\t%s\n}", stateType, strings.Join(bodyParts, "\n\t")))
 	group.Append(fn)
+}
+
+// generateFlowDiagram 生成流程图注释
+func (c *CodeGenerator) generateFlowDiagram(group *gg.Group) {
+	if len(c.model.Transitions) == 0 {
+		return
+	}
+
+	renderer := NewDiagramRenderer()
+
+	// 添加所有流转到渲染器
+	for _, trans := range c.model.Transitions {
+		fromStr := c.formatStage(trans.From)
+		toStr := c.formatStage(trans.To)
+
+		if trans.Via.Phase != "" {
+			// 审批流转
+			viaStr := c.formatStage(trans.Via)
+			fallbackStr := c.formatStage(trans.Fallback)
+			renderer.AddApprovalTransition(fromStr, viaStr, toStr, fallbackStr)
+		} else {
+			// 直接流转
+			renderer.AddDirectTransition(fromStr, toStr)
+		}
+	}
+
+	// 渲染并输出
+	comment := renderer.RenderAsComment()
+	if comment != "" {
+		group.Append(gg.S(comment))
+	}
+}
+
+// formatStage 格式化阶段显示
+func (c *CodeGenerator) formatStage(stage Stage) string {
+	if stage.Status != "" {
+		return fmt.Sprintf("%s(%s)", stage.Phase, stage.Status)
+	}
+	return stage.Phase
 }

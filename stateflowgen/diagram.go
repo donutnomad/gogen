@@ -172,22 +172,24 @@ func (r *DiagramRenderer) renderBranches(state string, targets []string, visited
 // 1. 上半分支的 belowAnchor 应等于下半分支的 aboveAnchor（中心对称）
 // 2. 最末尾的分支，每个分支的空间永远为1行
 func (r *DiagramRenderer) renderBranchesWithMinHeight(state string, targets []string, visited map[string]bool, minHeight int) ([]string, int) {
-	// 第一步：递归渲染所有分支，计算自然高度
+	if len(targets) == 0 {
+		return []string{}, 0
+	}
+
 	type branchInfo struct {
-		target      string
 		lines       []string
 		anchor      int
 		aboveAnchor int
 		belowAnchor int
-		padAbove    int // 需要在内容前添加的竖线行数
-		padBelow    int // 需要在内容后添加的竖线行数
+		padAbove    int
+		padBelow    int
 	}
+
 	var branches []branchInfo
 	for _, to := range targets {
 		branchVisited := copyVisited(visited)
 		lines, anchor := r.renderFlow(to, branchVisited)
 		branches = append(branches, branchInfo{
-			target:      to,
 			lines:       lines,
 			anchor:      anchor,
 			aboveAnchor: anchor,
@@ -195,290 +197,168 @@ func (r *DiagramRenderer) renderBranchesWithMinHeight(state string, targets []st
 		})
 	}
 
-	// 第二步：计算上半部分和下半部分需要对称的空间
-	var upperMaxBelow, lowerMaxAbove int
-	var midIndex int
+	// Calculate maxExtend based on INNERMOST branches only
+	upperHalf := len(branches) / 2
+	lowerStartIndex := len(branches) - upperHalf
 
-	if len(branches)%2 == 1 {
-		midIndex = len(branches) / 2
-		for i := 0; i < midIndex; i++ {
-			if branches[i].belowAnchor > upperMaxBelow {
-				upperMaxBelow = branches[i].belowAnchor
-			}
-		}
-		for i := midIndex + 1; i < len(branches); i++ {
-			if branches[i].aboveAnchor > lowerMaxAbove {
-				lowerMaxAbove = branches[i].aboveAnchor
-			}
-		}
-	} else {
-		midIndex = -1
-		upperHalf := len(branches) / 2
-		for i := 0; i < upperHalf; i++ {
-			if branches[i].belowAnchor > upperMaxBelow {
-				upperMaxBelow = branches[i].belowAnchor
-			}
-		}
-		for i := upperHalf; i < len(branches); i++ {
-			if branches[i].aboveAnchor > lowerMaxAbove {
-				lowerMaxAbove = branches[i].aboveAnchor
-			}
-		}
+	upperInnerBelow := 0
+	if upperHalf > 0 {
+		upperInnerBelow = branches[upperHalf-1].belowAnchor
 	}
 
-	// 确保上下对称：上半的 belowAnchor 要等于下半的 aboveAnchor
-	maxExtend := upperMaxBelow
-	if lowerMaxAbove > maxExtend {
-		maxExtend = lowerMaxAbove
+	lowerInnerAbove := 0
+	if lowerStartIndex < len(branches) {
+		lowerInnerAbove = branches[lowerStartIndex].aboveAnchor
 	}
 
-	// 第三步：计算自然总高度
-	naturalHeight := 0
-	for i, b := range branches {
-		// 每个分支的最终高度 = 自然高度 + 需要的 padding
-		branchFinalHeight := len(b.lines)
-		if len(branches)%2 == 1 {
-			if i < midIndex {
-				branchFinalHeight += maxExtend - b.belowAnchor
-			} else if i > midIndex {
-				branchFinalHeight += maxExtend - b.aboveAnchor
-			}
-		} else {
-			upperHalf := len(branches) / 2
-			if i < upperHalf {
-				branchFinalHeight += maxExtend - b.belowAnchor
-			} else {
-				branchFinalHeight += maxExtend - b.aboveAnchor
-			}
-		}
-		naturalHeight += branchFinalHeight
-		if i < len(branches)-1 {
-			naturalHeight++ // 分隔行
-		}
+	maxExtend := upperInnerBelow
+	if lowerInnerAbove > maxExtend {
+		maxExtend = lowerInnerAbove
 	}
 
-	// 第四步：如果有 minHeight 约束，需要扩展
-	extraFromMinHeight := 0
-	if minHeight > naturalHeight {
-		extraNeeded := minHeight - naturalHeight
-		// 均分到各个分支，通过增加 maxExtend
-		extraFromMinHeight = (extraNeeded + 1) / 2
-		maxExtend += extraFromMinHeight
+	// Enforce spacing for even branches
+	if len(branches)%2 == 0 && maxExtend < 1 {
+		maxExtend = 1
 	}
 
-	// 第五步：计算每个分支需要的目标高度，如果需要则重新渲染
+	// Apply padding to innermost branches
+	if upperHalf > 0 {
+		b := &branches[upperHalf-1]
+		b.padBelow = maxExtend - b.belowAnchor
+	}
+	if lowerStartIndex < len(branches) {
+		b := &branches[lowerStartIndex]
+		b.padAbove = maxExtend - b.aboveAnchor
+	}
+
+	// Collect all lines to determine center and connectivity
+	type renderLine struct {
+		isAnchor    bool
+		isCenterSep bool
+		isSeparator bool
+		isPad       bool
+		content     string
+		branchIndex int
+	}
+
+	var allLines []renderLine
+
 	for i := range branches {
-		b := &branches[i]
-		var targetHeight int
+		b := branches[i]
 
-		if len(branches)%2 == 1 {
-			if i < midIndex {
-				// 上半分支：需要 belowAnchor 达到 maxExtend
-				targetHeight = b.aboveAnchor + 1 + maxExtend
-			} else if i > midIndex {
-				// 下半分支：需要 aboveAnchor 达到 maxExtend
-				targetHeight = maxExtend + 1 + b.belowAnchor
-			} else {
-				// 中间分支：不需要扩展
-				targetHeight = len(b.lines)
-			}
-		} else {
-			upperHalf := len(branches) / 2
-			if i < upperHalf {
-				targetHeight = b.aboveAnchor + 1 + maxExtend
-			} else {
-				targetHeight = maxExtend + 1 + b.belowAnchor
-			}
-		}
-
-		// 如果需要更大高度，重新渲染
-		if targetHeight > len(b.lines) {
-			branchVisited := copyVisited(visited)
-			b.lines, b.anchor = r.renderFlowWithMinHeight(b.target, branchVisited, targetHeight)
-			b.aboveAnchor = b.anchor
-			b.belowAnchor = len(b.lines) - 1 - b.anchor
-		}
-	}
-
-	// 第六步：重新计算 maxExtend（重新渲染后可能变化）
-	// 但要确保不低于 minHeight 约束所需的值
-	upperMaxBelow = 0
-	lowerMaxAbove = 0
-	if len(branches)%2 == 1 {
-		for i := 0; i < midIndex; i++ {
-			if branches[i].belowAnchor > upperMaxBelow {
-				upperMaxBelow = branches[i].belowAnchor
-			}
-		}
-		for i := midIndex + 1; i < len(branches); i++ {
-			if branches[i].aboveAnchor > lowerMaxAbove {
-				lowerMaxAbove = branches[i].aboveAnchor
-			}
-		}
-	} else {
-		upperHalf := len(branches) / 2
-		for i := 0; i < upperHalf; i++ {
-			if branches[i].belowAnchor > upperMaxBelow {
-				upperMaxBelow = branches[i].belowAnchor
-			}
-		}
-		for i := upperHalf; i < len(branches); i++ {
-			if branches[i].aboveAnchor > lowerMaxAbove {
-				lowerMaxAbove = branches[i].aboveAnchor
-			}
-		}
-	}
-
-	// 取自然对称值和 minHeight 扩展值中的较大者
-	newMaxExtend := upperMaxBelow
-	if lowerMaxAbove > newMaxExtend {
-		newMaxExtend = lowerMaxAbove
-	}
-	// 确保不低于 minHeight 带来的扩展
-	if maxExtend > newMaxExtend {
-		newMaxExtend = maxExtend
-	}
-	maxExtend = newMaxExtend
-
-	// 第七步：计算 padding
-	for i := range branches {
-		b := &branches[i]
-		b.padAbove = 0
-		b.padBelow = 0
-
-		if len(branches)%2 == 1 {
-			if i < midIndex {
-				b.padBelow = maxExtend - b.belowAnchor
-			} else if i > midIndex {
-				b.padAbove = maxExtend - b.aboveAnchor
-			}
-		} else {
-			upperHalf := len(branches) / 2
-			if i < upperHalf {
-				b.padBelow = maxExtend - b.belowAnchor
-			} else {
-				b.padAbove = maxExtend - b.aboveAnchor
-			}
-		}
-	}
-
-	// 第八步：计算每个分支块的位置（含填充）
-	type blockPos struct {
-		startLine int
-		endLine   int
-		anchor    int // 全局锚点行（含填充）
-	}
-	var blocks []blockPos
-
-	currentLine := 0
-	for i, b := range branches {
-		// 实际高度 = padAbove + 内容高度 + padBelow
-		height := b.padAbove + len(b.lines) + b.padBelow
-		pos := blockPos{
-			startLine: currentLine,
-			endLine:   currentLine + height - 1,
-			anchor:    currentLine + b.padAbove + b.anchor,
-		}
-		blocks = append(blocks, pos)
-		currentLine += height
-
-		if i < len(branches)-1 {
-			currentLine++ // 分隔行
-		}
-	}
-
-	// 第九步：确定中心行
-	var centerLine int
-	if len(blocks)%2 == 1 {
-		centerLine = blocks[len(blocks)/2].anchor
-	} else {
-		upperBlock := len(blocks)/2 - 1
-		centerLine = blocks[upperBlock].endLine + 1
-	}
-
-	// 竖线范围
-	firstAnchor := blocks[0].anchor
-	lastAnchor := blocks[len(blocks)-1].anchor
-
-	// 第十步：构建输出
-	prefix := state + " -->"
-	junctionIndent := strings.Repeat(" ", len(prefix))
-	branchPrefix := "+--> "
-	branchIndent := strings.Repeat(" ", len(branchPrefix))
-
-	var result []string
-
-	for i, b := range branches {
-		blockStart := blocks[i].startLine
-
-		// 输出 padAbove 行
+		// Pad Above
 		for k := 0; k < b.padAbove; k++ {
-			globalLine := blockStart + k
-			inVerticalRange := globalLine > firstAnchor && globalLine < lastAnchor
-			isCenter := globalLine == centerLine
-			if isCenter {
-				result = append(result, prefix+"|")
-			} else if inVerticalRange {
-				result = append(result, junctionIndent+"|")
-			} else {
-				result = append(result, junctionIndent+" ")
-			}
+			allLines = append(allLines, renderLine{isPad: true})
 		}
 
-		// 输出分支内容
+		// Content
 		for j, line := range b.lines {
-			globalLine := blockStart + b.padAbove + j
-			isAnchor := j == b.anchor
-			isCenter := globalLine == centerLine
-			inVerticalRange := globalLine > firstAnchor && globalLine < lastAnchor
-
-			var out string
-			if isCenter && isAnchor {
-				out = prefix + branchPrefix + line
-			} else if isAnchor {
-				out = junctionIndent + branchPrefix + line
-			} else if inVerticalRange {
-				if isCenter {
-					out = prefix + "|" + branchIndent + line
-				} else {
-					out = junctionIndent + "|" + branchIndent + line
-				}
-			} else {
-				if isCenter {
-					out = prefix + " " + branchIndent + line
-				} else {
-					out = junctionIndent + " " + branchIndent + line
-				}
-			}
-			result = append(result, out)
+			allLines = append(allLines, renderLine{
+				isAnchor:    j == b.anchor,
+				content:     line,
+				branchIndex: i,
+			})
 		}
 
-		// 输出 padBelow 行
+		// Pad Below
 		for k := 0; k < b.padBelow; k++ {
-			globalLine := blockStart + b.padAbove + len(b.lines) + k
-			inVerticalRange := globalLine > firstAnchor && globalLine < lastAnchor
-			isCenter := globalLine == centerLine
-			if isCenter {
-				result = append(result, prefix+"|")
-			} else if inVerticalRange {
-				result = append(result, junctionIndent+"|")
-			} else {
-				result = append(result, junctionIndent+" ")
-			}
+			allLines = append(allLines, renderLine{isPad: true})
 		}
 
-		// 分支之间添加分隔行
+		// Separator (unless last)
 		if i < len(branches)-1 {
-			sepLine := blocks[i].endLine + 1
-			if sepLine == centerLine {
-				result = append(result, prefix+"+")
-			} else {
-				result = append(result, junctionIndent+"|")
+			isCenter := (i == upperHalf-1) && (len(branches)%2 == 0)
+			allLines = append(allLines, renderLine{
+				isSeparator: true,
+				isCenterSep: isCenter,
+			})
+		}
+	}
+
+	// Determine center line index
+	var centerLineIndex int
+	if len(branches)%2 == 1 {
+		// Odd: center is the anchor of the middle branch
+		midIdx := len(branches) / 2
+		for i, line := range allLines {
+			if line.isAnchor && line.branchIndex == midIdx {
+				centerLineIndex = i
+				break
+			}
+		}
+	} else {
+		// Even: center is the middle separator
+		for i, line := range allLines {
+			if line.isCenterSep {
+				centerLineIndex = i
+				break
 			}
 		}
 	}
 
-	return result, centerLine
+	// Determine vertical connectivity range (from first anchor to last anchor)
+	firstAnchor := -1
+	lastAnchor := -1
+	for i, line := range allLines {
+		if line.isAnchor {
+			if firstAnchor == -1 {
+				firstAnchor = i
+			}
+			lastAnchor = i
+		}
+	}
+
+	// Render results
+	var result []string
+	prefix := state + " -->"
+	branchPrefix := "+--> "
+	junctionIndent := strings.Repeat(" ", len(prefix))
+
+	// Sub-indent for content lines
+	subIndent := strings.Repeat(" ", len(branchPrefix)-1)
+
+	for i, lineData := range allLines {
+		var lineStr string
+
+		if i == centerLineIndex {
+			if len(branches)%2 == 1 {
+				// Odd center: prefix + content (which starts with branchPrefix)
+				// The content from renderFlow/renderBranches is just the line.
+				// But wait, b.lines[anchor] from renderFlow puts the target name?
+				// renderFlow returns just lines. Target name is inside the lines?
+				// No, renderFlow returns lines of the TARGET.
+				// E.g. "L1".
+				// So lineData.content is "L1".
+				// We need to output "A -->+--> L1".
+				// prefix ("A -->") + branchPrefix ("+--> ") + content ("L1") ?
+				// Matches "A -->+--> L1".
+				lineStr = prefix + branchPrefix + lineData.content
+			} else {
+				// Even center: separator '+' (Caller preprends parent arrow)
+				// Wait, NO. We are the ones rendering the parent arrow!
+				// result = append(result, prefix + "+")
+				lineStr = prefix + "+"
+			}
+		} else {
+			needsBar := i > firstAnchor && i < lastAnchor
+			marker := " "
+			if needsBar {
+				marker = "|"
+			}
+
+			if lineData.isAnchor {
+				lineStr = junctionIndent + branchPrefix + lineData.content
+			} else if lineData.isPad || (lineData.isCenterSep == false && lineData.content == "") {
+				lineStr = junctionIndent + marker
+			} else {
+				// Regular content
+				lineStr = junctionIndent + marker + subIndent + lineData.content
+			}
+		}
+		result = append(result, lineStr)
+	}
+
+	return result, centerLineIndex
 }
 
 // renderApprovalFlow 渲染审批流转
