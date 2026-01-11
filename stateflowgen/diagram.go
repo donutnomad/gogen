@@ -8,17 +8,20 @@ import (
 const (
 	defaultArrow     = " --> " // Stem arrow
 	defaultJunction  = "+"
-	defaultVertical  = "|"
+	defaultVertical  = "│"
 	defaultLoop      = " 🔁"
 	defaultEdgeLabel = "--> " // Standard branch edge label (should include space at end)
 )
 
 // Node represents a node in the graph
 type Node struct {
-	ID       string
-	Content  string // Text to display (defaults to ID)
-	Junction string // Custom junction symbol (defaults to global setting if empty)
-	Style    string // "approval" = classic approval style (no junction on center branch)
+	ID           string
+	Content      string // Text to display (defaults to ID)
+	Junction     string // Custom junction symbol (defaults to global setting if empty)
+	CornerTop    string // Custom top corner symbol
+	CornerBottom string // Custom bottom corner symbol
+	Intersection string // Custom intersection symbol (middle branches)
+	Style        string // "approval" = classic approval style (no junction on center branch)
 }
 
 // Edge represents a directed connection
@@ -32,6 +35,9 @@ type Edge struct {
 type DiagramRenderer struct {
 	nodes map[string]Node
 	edges map[string][]Edge
+
+	// Track insertion order for deterministic root selection
+	nodeOrder []string
 
 	// Configuration
 	JunctionSymbol string
@@ -62,6 +68,7 @@ func (r *DiagramRenderer) AddNode(id, content string) {
 func (r *DiagramRenderer) ensureNode(id string) {
 	if _, ok := r.nodes[id]; !ok {
 		r.nodes[id] = Node{ID: id, Content: id}
+		r.nodeOrder = append(r.nodeOrder, id)
 	}
 }
 
@@ -70,6 +77,39 @@ func (r *DiagramRenderer) SetJunction(id, junction string) {
 	r.ensureNode(id)
 	n := r.nodes[id]
 	n.Junction = junction
+	r.nodes[id] = n
+}
+
+// SetCorner sets the symbol for BOTH top and bottom corners
+func (r *DiagramRenderer) SetCorner(id, symbol string) {
+	r.ensureNode(id)
+	n := r.nodes[id]
+	n.CornerTop = symbol
+	n.CornerBottom = symbol
+	r.nodes[id] = n
+}
+
+// SetCornerTop sets the symbol for the top corner
+func (r *DiagramRenderer) SetCornerTop(id, symbol string) {
+	r.ensureNode(id)
+	n := r.nodes[id]
+	n.CornerTop = symbol
+	r.nodes[id] = n
+}
+
+// SetCornerBottom sets the symbol for the bottom corner
+func (r *DiagramRenderer) SetCornerBottom(id, symbol string) {
+	r.ensureNode(id)
+	n := r.nodes[id]
+	n.CornerBottom = symbol
+	r.nodes[id] = n
+}
+
+// SetIntersection sets the symbol for intermediate branch points
+func (r *DiagramRenderer) SetIntersection(id, symbol string) {
+	r.ensureNode(id)
+	n := r.nodes[id]
+	n.Intersection = symbol
 	r.nodes[id] = n
 }
 
@@ -183,10 +223,12 @@ func (r *DiagramRenderer) Render() string {
 	}
 
 	if root == "" {
-		// Cycle? Pick any.
-		for id := range r.nodes {
-			root = id
-			break
+		// Cycle? Pick the first added node for determinism (User Request)
+		for _, id := range r.nodeOrder {
+			if _, ok := r.nodes[id]; ok {
+				root = id
+				break
+			}
 		}
 	}
 
@@ -384,13 +426,29 @@ func (r *DiagramRenderer) findCenterLine(allLines []renderLine, branchCount int)
 func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine, centerLineIndex int, branches []branchInfo) []string {
 
 	nodeContent := state
-	junctionSymbol := r.JunctionSymbol
+
+	// Defaults
+	junctionSymbol := r.JunctionSymbol // The global default, e.g. "+"
+	stemSymbol := junctionSymbol       // Center Stem
+	cornerTopSymbol := junctionSymbol  // Top
+	cornerBotSymbol := junctionSymbol  // Bottom
+	interSymbol := junctionSymbol      // Middle intersections
+
 	isApprovalStyle := false
 
 	if n, ok := r.nodes[state]; ok {
 		nodeContent = n.Content
 		if n.Junction != "" {
-			junctionSymbol = n.Junction
+			stemSymbol = n.Junction
+		}
+		if n.CornerTop != "" {
+			cornerTopSymbol = n.CornerTop
+		}
+		if n.CornerBottom != "" {
+			cornerBotSymbol = n.CornerBottom
+		}
+		if n.Intersection != "" {
+			interSymbol = n.Intersection
 		}
 		if n.Style == "approval" {
 			isApprovalStyle = true
@@ -415,15 +473,16 @@ func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine
 				label := branches[bIdx].edgeLabel
 
 				// Approval style: Don't render junction on center branch
-				centerJunction := junctionSymbol
+				centerJunction := stemSymbol
 				if isApprovalStyle {
 					centerJunction = ""
 				}
 
 				lineStr = stemStr + centerJunction + label + lineData.content
 			} else {
-				// Even center: Stem + Junction
-				lineStr = stemStr + junctionSymbol
+				// Even center: Stem + Socket (Intersection/Stem?)
+				// Just the stem connecting to the vertical line
+				lineStr = stemStr + stemSymbol
 			}
 		} else {
 			marker := " "
@@ -435,7 +494,15 @@ func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine
 				bIdx := lineData.branchIndex
 				label := branches[bIdx].edgeLabel
 
-				lineStr = junctionIndent + junctionSymbol + label + lineData.content
+				// Determine symbol based on position
+				currentSymbol := interSymbol
+				if i == firstAnchor {
+					currentSymbol = cornerTopSymbol
+				} else if i == lastAnchor {
+					currentSymbol = cornerBotSymbol
+				}
+
+				lineStr = junctionIndent + currentSymbol + label + lineData.content
 			} else if lineData.isPad || lineData.isSeparator || lineData.content == "" {
 				lineStr = junctionIndent + marker
 			} else {
@@ -443,8 +510,34 @@ func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine
 				bIdx := lineData.branchIndex
 				label := branches[bIdx].edgeLabel
 
-				// subIndent should be spaces equal to len(Junction + Label)
-				subIndent := strings.Repeat(" ", len(junctionSymbol)+len(label))
+				// Here we need indent matching the symbol above.
+				// Since symbol length might vary, we should ideally use len(currentSymbol).
+				// But we are inside the branch content lines, the symbol line was printed above.
+				// We'll assume symbol length 1 or use `junctionSymbol` length as fallback approximation
+				// or just use spaces equal to the indentation logic.
+				// The logic above was: strings.Repeat(" ", len(junctionSymbol)+len(label))
+				// Now symbols differ. We'll use stemSymbol's length or max?
+				// Usually these are 1 char. Let's use `stemSymbol` length for consistency with `junctionIndent`?
+				// No, subIndent depends on the `+` used in `+-->`.
+
+				// Wait, currentSymbol depends on i. But here we are in content lines for branch `bIdx`.
+				// We need to know which symbol was used for this branch's anchor.
+
+				// Logic check: content lines follow an anchor.
+				// The anchor used `currentSymbol`.
+				// So subIndent should technically allow for `len(currentSymbol) + len(label)`.
+
+				// Since this loop iterates lines, retrieving the specific symbol for the branch of this content line is tricky without tracking.
+				// However, usually these symbols are 1 char.
+				// Let's stick to `len(interSymbol)` or `len(cornerSymbol)`?
+				// Safe bet: len(junctionSymbol) (global default) if we assume monospaced single chars.
+				// Or better: The anchor line for this branch used a symbol.
+				// The indentation needs to align with `Indent + Symbol + Label`.
+				// So subIndent = " " * (len(Symbol) + len(Label)).
+
+				// Simplification for now: use len(interSymbol) as a proxy,
+				// assuming user won't set wildly different lengths for symbols.
+				subIndent := strings.Repeat(" ", len(interSymbol)+len(label))
 
 				lineStr = junctionIndent + marker + subIndent + lineData.content
 			}

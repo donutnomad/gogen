@@ -43,9 +43,9 @@ func TestDiagramRenderer_TwoBranches(t *testing.T) {
 	// 2个分支：B, |, C = 3行，中心行=1
 	expected := strings.Join([]string{
 		"     +--> B",
-		"     |",
+		"     │",
 		"A -->+",
-		"     |",
+		"     │",
 		"     +--> C",
 	}, "\n")
 
@@ -65,9 +65,9 @@ func TestDiagramRenderer_ThreeBranches(t *testing.T) {
 	// 3个分支：B, |, C, |, D = 5行
 	expected := strings.Join([]string{
 		"     +--> B",
-		"     |",
+		"     │",
 		"A -->+--> C",
-		"     |",
+		"     │",
 		"     +--> D",
 	}, "\n")
 
@@ -87,13 +87,13 @@ func TestDiagramRenderer_FourBranches(t *testing.T) {
 	result := renderer.Render()
 	expected := strings.Join([]string{
 		"     +--> B",
-		"     |",
+		"     │",
 		"     +--> C",
-		"     |",
+		"     │",
 		"A -->+",
-		"     |",
+		"     │",
 		"     +--> D",
-		"     |",
+		"     │",
 		"     +--> E",
 	}, "\n")
 
@@ -113,9 +113,9 @@ func TestDiagramRenderer_NestedBranches(t *testing.T) {
 	result := renderer.Render()
 	expected := strings.Join([]string{
 		"           +--> C --> E",
-		"           |",
+		"           │",
 		"A --> B -->+",
-		"           |",
+		"           │",
 		"           +--> D",
 	}, "\n")
 
@@ -138,6 +138,19 @@ func TestDiagramRenderer_Cycle(t *testing.T) {
 	}
 }
 
+func TestDiagramRenderer_Cycle2(t *testing.T) {
+	renderer := NewDiagramRenderer()
+	renderer.AddEdge("B", "A", "--> ")
+	renderer.AddEdge("A", "B", "--> ")
+
+	result := renderer.Render()
+	expected := "B --> A --> B 🔁"
+
+	if result != expected {
+		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
+	}
+}
+
 // 测试7：复杂工作流
 func TestDiagramRenderer_ComplexWorkflow(t *testing.T) {
 	renderer := NewDiagramRenderer()
@@ -150,9 +163,9 @@ func TestDiagramRenderer_ComplexWorkflow(t *testing.T) {
 	result := renderer.Render()
 	expected := strings.Join([]string{
 		"                    +--> resolved --> closed",
-		"                    |",
+		"                    │",
 		"open --> pending -->+",
-		"                    |",
+		"                    │",
 		"                    +--> rejected --> open 🔁",
 	}, "\n")
 
@@ -170,9 +183,9 @@ func TestDiagramRenderer_ApprovalTransition(t *testing.T) {
 	// Legacy style: "Draft --> Reviewing (via)"
 	expected := strings.Join([]string{
 		"         +-- <Commit> --> Published",
-		"         |",
+		"         │",
 		"Draft --> Reviewing (via)",
-		"         |",
+		"         │",
 		"         +-- <Reject> --> Draft 🔁",
 	}, "\n")
 
@@ -190,14 +203,107 @@ func TestDiagramRenderer_ApprovalWithContinuation(t *testing.T) {
 	result := renderer.Render()
 	expected := strings.Join([]string{
 		"         +-- <Commit> --> Published --> Archived",
-		"         |",
+		"         │",
 		"Draft --> Reviewing (via)",
-		"         |",
+		"         │",
 		"         +-- <Reject> --> Draft 🔁",
 	}, "\n")
 
 	if result != expected {
 		t.Errorf("Expected:\n%q\n\nGot:\n%q", expected, result)
+	}
+}
+
+// 测试：自定义符号控制 (Test Custom Symbols)
+func TestDiagramRenderer_CustomSymbols(t *testing.T) {
+	renderer := NewDiagramRenderer()
+
+	// Case 1: Odd branches (3) - Top/Bottom=Corner, Middle=Stem
+	renderer.AddNode("A", "NodeA")
+	renderer.SetJunction("A", "*")     // Stem
+	renderer.SetCorner("A", "@")       // Top/Bottom
+	renderer.SetIntersection("A", "%") // Intermediate (won't appear in 3 branches)
+
+	renderer.AddEdge("A", "B", "--> ")
+	renderer.AddEdge("A", "C", "--> ")
+	renderer.AddEdge("A", "D", "--> ")
+
+	result := renderer.Render()
+	// B (Top) -> Corner @
+	// C (Mid) -> Stem *
+	// D (Bot) -> Corner @
+	expected := strings.Join([]string{
+		"         @--> B",
+		"         │",
+		"NodeA -->*--> C",
+		"         │",
+		"         @--> D",
+	}, "\n")
+
+	if result != expected {
+		t.Errorf("Odd Branches Mismatch!\nExpected:\n%q\n\nGot:\n%q", expected, result)
+	}
+
+	// Case 2: Even branches (4) - Top/Bot=Corner, Mids=Inter, Stem=Junction
+	renderer2 := NewDiagramRenderer()
+	renderer2.AddNode("X", "NodeX")
+	renderer2.SetJunction("X", "*")
+	renderer2.SetCorner("X", "@")
+	renderer2.SetIntersection("X", "%")
+
+	renderer2.AddEdge("X", "1", "--> ")
+	renderer2.AddEdge("X", "2", "--> ")
+	renderer2.AddEdge("X", "3", "--> ")
+	renderer2.AddEdge("X", "4", "--> ")
+
+	result2 := renderer2.Render()
+	// 1 (Top) -> Corner @
+	// 2 (Mid) -> Inter %
+	// Stem    -> *
+	// 3 (Mid) -> Inter %
+	// 4 (Bot) -> Corner @
+	expected2 := strings.Join([]string{
+		"         @--> 1",
+		"         │",
+		"         %--> 2",
+		"         │",
+		"NodeX -->*", // Stem connector
+		"         │",
+		"         %--> 3",
+		"         │",
+		"         @--> 4",
+	}, "\n")
+
+	if result2 != expected2 {
+		t.Errorf("Even Branches Mismatch!\nExpected:\n%q\n\nGot:\n%q", expected2, result2)
+	}
+}
+
+// 测试：分别设置 Top 和 Bottom Corner (Test Separate Corners)
+func TestDiagramRenderer_SplitCorners(t *testing.T) {
+	renderer := NewDiagramRenderer()
+	renderer.AddNode("A", "Root")
+	renderer.SetCornerTop("A", "T")
+	renderer.SetCornerBottom("A", "B")
+
+	renderer.AddEdge("A", "1", "--> ")
+	renderer.AddEdge("A", "2", "--> ")
+	renderer.AddEdge("A", "3", "--> ")
+
+	result := renderer.Render()
+	// 1 (Top) -> T
+	// 2 (Mid) -> + (default stem/inter)
+	// 3 (Bot) -> B
+	expected := strings.Join([]string{
+		"        T--> 1",
+		"        │",
+		"Root -->+--> 2",
+		"        │",
+		"        B--> 3",
+	}, "\n")
+
+	if result != expected {
+		t.Errorf("Split Corners Mismatch!\nExpected:\n%q\n\nGot:\n%q", expected, result)
 	}
 }
 
@@ -338,36 +444,36 @@ func TestDiagramRenderer_DeepWithApproval(t *testing.T) {
 
 	expected := strings.Join([]string{
 		"                                                                                   +--> L7A --> L8A --> L9A --> End",
-		"                                                                                   |",
+		"                                                                                   │",
 		"                                                      +--> L4A --> L5A --> L6A -->+",
-		"                                                      |                            |",
-		"                                                      |                            +--> L7B --> L8B --> L9B --> End",
+		"                                                      │                            │",
+		"                                                      │                            +--> L7B --> L8B --> L9B --> End",
 		"                             +-- <Commit> --> L3A -->+",
-		"                             |                        |                            +-- <Commit> --> L7C --> L8C --> L9C --> End",
-		"                             |                        |                            |",
-		"                             |                        +--> L4B --> L5B --> L6B --> L6B_Review (via)",
-		"                             |                                                     |",
-		"                             |                                                     +-- <Reject> --> L6B 🔁",
-		"                             |",
+		"                             │                        │                            +-- <Commit> --> L7C --> L8C --> L9C --> End",
+		"                             │                        │                            │",
+		"                             │                        +--> L4B --> L5B --> L6B --> L6B_Review (via)",
+		"                             │                                                     │",
+		"                             │                                                     +-- <Reject> --> L6B 🔁",
+		"                             │",
 		"                +--> L2A --> L2A_Review (via)",
-		"                |            |",
-		"                |            |",
-		"                |            |",
-		"                |            |",
-		"                |            |",
-		"                |            |",
-		"                |            +-- <Reject> --> L2A 🔁",
+		"                │            │",
+		"                │            │",
+		"                │            │",
+		"                │            │",
+		"                │            │",
+		"                │            │",
+		"                │            +-- <Reject> --> L2A 🔁",
 		"Start --> L1 -->+",
-		"                |",
-		"                |",
-		"                |                         +-- <Commit> --> L4C --> L5C --> L6C --> L7D --> L8D --> L9D --> End",
-		"                |                         |",
-		"                |            +--> L3B --> L3B_Review (via)",
-		"                |            |            |",
-		"                |            |            +-- <Reject> --> L3B 🔁",
+		"                │",
+		"                │",
+		"                │                         +-- <Commit> --> L4C --> L5C --> L6C --> L7D --> L8D --> L9D --> End",
+		"                │                         │",
+		"                │            +--> L3B --> L3B_Review (via)",
+		"                │            │            │",
+		"                │            │            +-- <Reject> --> L3B 🔁",
 		"                +--> L2B -->+",
-		"                             |",
-		"                             |",
+		"                             │",
+		"                             │",
 		"                             +--> L3C --> L4D --> L5D --> L6D --> L7E --> L8E --> L9E --> End",
 	}, "\n")
 
