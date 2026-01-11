@@ -502,14 +502,22 @@ func (r *DiagramRenderer) renderApprovalFlowWithMinHeight(state string, approval
 
 	commitPrefix := "+-- <Commit> --> "
 	commitIndent := strings.Repeat(" ", len(commitPrefix))
+	// 竖线行缩进少1位（因为有|字符）
+	commitVerticalIndent := ""
+	if len(commitPrefix) > 1 {
+		commitVerticalIndent = strings.Repeat(" ", len(commitPrefix)-1)
+	}
+
 	for j, line := range commitLines {
 		switch {
 		case j < commitAnchor:
+			// Commit 分支上方没有竖线，直接使用完整缩进
 			result = append(result, junctionIndent+commitIndent+line)
 		case j == commitAnchor:
 			result = append(result, junctionIndent+commitPrefix+line)
 		default:
-			result = append(result, junctionIndent+"|"+commitIndent+line)
+			// Commit 分支下方有竖线，连接 Via
+			result = append(result, junctionIndent+"|"+commitVerticalIndent+line)
 		}
 	}
 
@@ -544,15 +552,23 @@ func (r *DiagramRenderer) renderApprovalFlowWithMinHeight(state string, approval
 	}
 
 	rejectPrefix := "+-- <Reject> --> "
-	rejectIndent := strings.Repeat(" ", len(rejectPrefix))
+	// Reject 分支上方有竖线，连接 Via
+	// 竖线行缩进少1位
+	rejectVerticalIndent := ""
+	if len(rejectPrefix) > 1 {
+		rejectVerticalIndent = strings.Repeat(" ", len(rejectPrefix)-1)
+	}
+
 	for j, line := range rejectLines {
 		switch {
 		case j < rejectAnchor:
-			result = append(result, junctionIndent+"|"+rejectIndent+line)
+			// Reject 分支上方有竖线
+			result = append(result, junctionIndent+"|"+rejectVerticalIndent+line)
 		case j == rejectAnchor:
 			result = append(result, junctionIndent+rejectPrefix+line)
 		default:
-			result = append(result, junctionIndent+" "+rejectIndent+line)
+			// Reject 分支下方只是缩进
+			result = append(result, junctionIndent+" "+rejectVerticalIndent+line)
 		}
 	}
 
