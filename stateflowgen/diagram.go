@@ -2,6 +2,37 @@ package stateflowgen
 
 import "strings"
 
+// 流程图渲染符号常量
+const (
+	symbolArrow        = " --> "            // 箭头
+	symbolBranch       = "+--> "            // 分支箭头
+	symbolJunction     = "+"                // 分支节点
+	symbolVertical     = "|"                // 垂直连接线
+	symbolSpace        = " "                // 空格
+	symbolLoop         = " 🔁"               // 回环标记
+	symbolViaSuffix    = " (via)"           // via 后缀
+	symbolCommitPrefix = "+-- <Commit> -->" // 提交分支前缀（不含尾空格）
+	symbolRejectPrefix = "+-- <Reject> -->" // 拒绝分支前缀（不含尾空格）
+)
+
+// lineBuilder 行构建辅助
+type lineBuilder string
+
+// vertical 返回带竖线的行
+func (b lineBuilder) vertical() string {
+	return string(b) + symbolVertical
+}
+
+// verticalWith 返回带竖线和内容的行
+func (b lineBuilder) verticalWith(indent, content string) string {
+	return string(b) + symbolVertical + indent + content
+}
+
+// spacedWith 返回带空格和内容的行
+func (b lineBuilder) spacedWith(indent, content string) string {
+	return string(b) + symbolSpace + indent + content
+}
+
 // DiagramRenderer 流程图渲染器
 type DiagramRenderer struct {
 	transitions map[string][]string // from -> []to
@@ -90,12 +121,6 @@ func (r *DiagramRenderer) findEntryState() string {
 	return ""
 }
 
-// renderResult 渲染结果
-type renderResult struct {
-	lines  []string // 渲染后的所有行
-	anchor int      // 锚点行索引（父节点应连接到此行）
-}
-
 // renderFlow 递归渲染流程（从后往前生成）
 // 返回渲染结果和锚点行索引
 func (r *DiagramRenderer) renderFlow(state string, visited map[string]bool) ([]string, int) {
@@ -107,12 +132,12 @@ func (r *DiagramRenderer) renderFlow(state string, visited map[string]bool) ([]s
 func (r *DiagramRenderer) renderFlowWithMinHeight(state string, visited map[string]bool, minHeight int) ([]string, int) {
 	// 检查回环
 	if visited[state] {
-		return []string{state + " 🔁"}, 0
+		return []string{state + symbolLoop}, 0
 	}
 
 	// 检查是否有审批流转
 	if approval, ok := r.approvals[state]; ok {
-		return r.renderApprovalFlowWithMinHeight(state, approval, visited, minHeight)
+		return r.renderApprovalFlowWithMinHeight(state, approval, visited)
 	}
 
 	// 获取目标状态
@@ -128,7 +153,7 @@ func (r *DiagramRenderer) renderFlowWithMinHeight(state string, visited map[stri
 		return r.renderSingleTargetWithMinHeight(state, targets[0], visited, minHeight)
 	}
 
-	return r.renderBranchesWithMinHeight(state, targets, visited, minHeight)
+	return r.renderBranchesWithMinHeight(state, targets, visited)
 }
 
 // renderSingleTarget 渲染单目标（线性流转）
@@ -146,7 +171,7 @@ func (r *DiagramRenderer) renderSingleTargetWithMinHeight(state, target string, 
 	}
 
 	// 在锚点行前面加上 "state --> "
-	prefix := state + " --> "
+	prefix := state + symbolArrow
 	indent := strings.Repeat(" ", len(prefix))
 
 	var result []string
@@ -163,7 +188,7 @@ func (r *DiagramRenderer) renderSingleTargetWithMinHeight(state, target string, 
 
 // renderBranches 渲染多分支
 func (r *DiagramRenderer) renderBranches(state string, targets []string, visited map[string]bool) ([]string, int) {
-	return r.renderBranchesWithMinHeight(state, targets, visited, 0)
+	return r.renderBranchesWithMinHeight(state, targets, visited)
 }
 
 // renderBranchesWithMinHeight 带最小高度约束的多分支渲染
@@ -171,7 +196,7 @@ func (r *DiagramRenderer) renderBranches(state string, targets []string, visited
 // 关键规则：
 // 1. 上半分支的 belowAnchor 应等于下半分支的 aboveAnchor（中心对称）
 // 2. 最末尾的分支，每个分支的空间永远为1行
-func (r *DiagramRenderer) renderBranchesWithMinHeight(state string, targets []string, visited map[string]bool, minHeight int) ([]string, int) {
+func (r *DiagramRenderer) renderBranchesWithMinHeight(state string, targets []string, visited map[string]bool) ([]string, int) {
 	if len(targets) == 0 {
 		return []string{}, 0
 	}
@@ -310,8 +335,8 @@ func (r *DiagramRenderer) renderBranchesWithMinHeight(state string, targets []st
 
 	// Render results
 	var result []string
-	prefix := state + " -->"
-	branchPrefix := "+--> "
+	prefix := state + symbolArrow[:len(symbolArrow)-1] // 去掉尾空格
+	branchPrefix := symbolBranch
 	junctionIndent := strings.Repeat(" ", len(prefix))
 
 	// Sub-indent for content lines
@@ -337,13 +362,13 @@ func (r *DiagramRenderer) renderBranchesWithMinHeight(state string, targets []st
 				// Even center: separator '+' (Caller preprends parent arrow)
 				// Wait, NO. We are the ones rendering the parent arrow!
 				// result = append(result, prefix + "+")
-				lineStr = prefix + "+"
+				lineStr = prefix + symbolJunction
 			}
 		} else {
 			needsBar := i > firstAnchor && i < lastAnchor
-			marker := " "
+			marker := symbolSpace
 			if needsBar {
-				marker = "|"
+				marker = symbolVertical
 			}
 
 			if lineData.isAnchor {
@@ -363,14 +388,14 @@ func (r *DiagramRenderer) renderBranchesWithMinHeight(state string, targets []st
 
 // renderApprovalFlow 渲染审批流转
 func (r *DiagramRenderer) renderApprovalFlow(state string, approval *ApprovalInfo, visited map[string]bool) ([]string, int) {
-	return r.renderApprovalFlowWithMinHeight(state, approval, visited, 0)
+	return r.renderApprovalFlowWithMinHeight(state, approval, visited)
 }
 
 // renderApprovalFlowWithMinHeight 带最小高度约束的审批流转渲染
-func (r *DiagramRenderer) renderApprovalFlowWithMinHeight(state string, approval *ApprovalInfo, visited map[string]bool, minHeight int) ([]string, int) {
+func (r *DiagramRenderer) renderApprovalFlowWithMinHeight(state string, approval *ApprovalInfo, visited map[string]bool) ([]string, int) {
 	visited[state] = true
-	prefix := state + " --> "
-	junctionIndent := strings.Repeat(" ", len(prefix))
+	prefix := state + symbolArrow
+	lb := lineBuilder(strings.Repeat(" ", len(prefix)))
 
 	var result []string
 
@@ -380,24 +405,21 @@ func (r *DiagramRenderer) renderApprovalFlowWithMinHeight(state string, approval
 	commitAboveAnchor := commitAnchor
 	commitBelowAnchor := len(commitLines) - 1 - commitAnchor
 
-	commitPrefix := "+-- <Commit> --> "
+	commitPrefix := symbolCommitPrefix + symbolSpace
 	commitIndent := strings.Repeat(" ", len(commitPrefix))
 	// 竖线行缩进少1位（因为有|字符）
-	commitVerticalIndent := ""
-	if len(commitPrefix) > 1 {
-		commitVerticalIndent = strings.Repeat(" ", len(commitPrefix)-1)
-	}
+	commitVerticalIndent := strings.Repeat(" ", len(commitPrefix)-1)
 
 	for j, line := range commitLines {
 		switch {
 		case j < commitAnchor:
 			// Commit 分支上方没有竖线，直接使用完整缩进
-			result = append(result, junctionIndent+commitIndent+line)
+			result = append(result, string(lb)+commitIndent+line)
 		case j == commitAnchor:
-			result = append(result, junctionIndent+commitPrefix+line)
+			result = append(result, string(lb)+commitPrefix+line)
 		default:
 			// Commit 分支下方有竖线，连接 Via
-			result = append(result, junctionIndent+"|"+commitVerticalIndent+line)
+			result = append(result, lb.verticalWith(commitVerticalIndent, line))
 		}
 	}
 
@@ -420,35 +442,32 @@ func (r *DiagramRenderer) renderApprovalFlowWithMinHeight(state string, approval
 	}
 
 	for i := 0; i < gapTop; i++ {
-		result = append(result, junctionIndent+"|")
+		result = append(result, lb.vertical())
 	}
 
-	result = append(result, junctionIndent+"|")
-	result = append(result, prefix+approval.Via+" (via)")
-	result = append(result, junctionIndent+"|")
+	result = append(result, lb.vertical())
+	result = append(result, prefix+approval.Via+symbolViaSuffix)
+	result = append(result, lb.vertical())
 
 	for i := 0; i < gapBottom; i++ {
-		result = append(result, junctionIndent+"|")
+		result = append(result, lb.vertical())
 	}
 
-	rejectPrefix := "+-- <Reject> --> "
+	rejectPrefix := symbolRejectPrefix + symbolSpace
 	// Reject 分支上方有竖线，连接 Via
 	// 竖线行缩进少1位
-	rejectVerticalIndent := ""
-	if len(rejectPrefix) > 1 {
-		rejectVerticalIndent = strings.Repeat(" ", len(rejectPrefix)-1)
-	}
+	rejectVerticalIndent := strings.Repeat(" ", len(rejectPrefix)-1)
 
 	for j, line := range rejectLines {
 		switch {
 		case j < rejectAnchor:
 			// Reject 分支上方有竖线
-			result = append(result, junctionIndent+"|"+rejectVerticalIndent+line)
+			result = append(result, lb.verticalWith(rejectVerticalIndent, line))
 		case j == rejectAnchor:
-			result = append(result, junctionIndent+rejectPrefix+line)
+			result = append(result, string(lb)+rejectPrefix+line)
 		default:
 			// Reject 分支下方只是缩进
-			result = append(result, junctionIndent+" "+rejectVerticalIndent+line)
+			result = append(result, lb.spacedWith(rejectVerticalIndent, line))
 		}
 	}
 
@@ -486,61 +505,4 @@ func copyVisited(visited map[string]bool) map[string]bool {
 		newVisited[k] = v
 	}
 	return newVisited
-}
-
-// inflateBranchLines 膨胀分支渲染结果到目标高度
-// 在锚点上下均匀添加竖线行
-// 注意：竖线需要正确的缩进，这里假设每行的前缀宽度一致
-func inflateBranchLines(lines []string, anchor int, targetHeight int) ([]string, int) {
-	currentHeight := len(lines)
-	if currentHeight >= targetHeight {
-		return lines, anchor
-	}
-
-	needed := targetHeight - currentHeight
-	// 在锚点上下均匀添加
-	addBelow := needed / 2
-	addAbove := needed - addBelow
-
-	// 找到每行的前缀宽度（到第一个非空格字符的距离）
-	// 我们需要在正确的位置添加竖线
-	findPrefixWidth := func(s string) int {
-		for i, c := range s {
-			if c != ' ' {
-				return i
-			}
-		}
-		return len(s)
-	}
-
-	// 使用锚点行的前缀宽度作为参考
-	prefixWidth := 0
-	if anchor < len(lines) {
-		prefixWidth = findPrefixWidth(lines[anchor])
-	}
-
-	result := make([]string, 0, targetHeight)
-
-	// 添加上方的竖线
-	for i := 0; i < addAbove; i++ {
-		result = append(result, strings.Repeat(" ", prefixWidth)+"|")
-	}
-
-	// 添加原始内容
-	result = append(result, lines...)
-
-	// 添加下方的竖线
-	for i := 0; i < addBelow; i++ {
-		result = append(result, strings.Repeat(" ", prefixWidth)+"|")
-	}
-
-	return result, anchor + addAbove
-}
-
-// abs returns absolute value for integers to avoid pulling in math just for this helper.
-func abs(n int) int {
-	if n < 0 {
-		return -n
-	}
-	return n
 }
