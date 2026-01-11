@@ -8,6 +8,28 @@ import (
 	"github.com/pmezard/go-difflib/difflib"
 )
 
+func AddApprovalTransition(r *DiagramRenderer, from, via, to, fallback string) {
+	// Replicate visual structure using generic edges
+
+	// 1. Top: Commit path
+	if to != "" {
+		r.AddEdge(from, to, "-- <Commit> --> ")
+	}
+
+	// 2. Middle: Via path
+	// Uses " " label and "approval" style to suppress center junction
+	r.AddEdge(from, via, " ")
+	r.AddNode(via, via+" (via)")
+
+	// 3. Bottom: Reject path
+	if fallback != "" {
+		r.AddEdge(from, fallback, "-- <Reject> --> ")
+	}
+
+	// Set style to "approval" to affect formatBranchOutput behavior
+	r.SetNodeStyle(from, "approval")
+}
+
 // Helper to normalized expectation
 func assertRender(t *testing.T, renderer *DiagramRenderer, expectedLines []string) {
 	result := renderer.Render()
@@ -180,7 +202,7 @@ func TestDiagramRenderer_ComplexWorkflow(t *testing.T) {
 // 测试8：审批流转 (Using AddApprovalTransition for Legacy Style)
 func TestDiagramRenderer_ApprovalTransition(t *testing.T) {
 	renderer := NewDiagramRenderer()
-	renderer.AddApprovalTransition("Draft", "Reviewing", "Published", "Draft")
+	AddApprovalTransition(renderer, "Draft", "Reviewing", "Published", "Draft")
 
 	result := renderer.Render()
 	// Legacy style: "Draft --> Reviewing (via)"
@@ -200,7 +222,7 @@ func TestDiagramRenderer_ApprovalTransition(t *testing.T) {
 // 测试9：审批流转带后续
 func TestDiagramRenderer_ApprovalWithContinuation(t *testing.T) {
 	renderer := NewDiagramRenderer()
-	renderer.AddApprovalTransition("Draft", "Reviewing", "Published", "Draft")
+	AddApprovalTransition(renderer, "Draft", "Reviewing", "Published", "Draft")
 	renderer.AddEdge("Published", "Archived", "--> ")
 
 	result := renderer.Render()
@@ -383,7 +405,7 @@ func TestDiagramRenderer_DeepWithApproval(t *testing.T) {
 	renderer.AddEdge("L1", "L2B", "--> ")
 
 	// Layer 3: L2A (Approval)
-	renderer.AddApprovalTransition("L2A", "L2A_Review", "L3A", "L2A")
+	AddApprovalTransition(renderer, "L2A", "L2A_Review", "L3A", "L2A")
 
 	// Layer 3: L2B -> L3B, L3C
 	renderer.AddEdge("L2B", "L3B", "--> ")
@@ -394,7 +416,7 @@ func TestDiagramRenderer_DeepWithApproval(t *testing.T) {
 	renderer.AddEdge("L3A", "L4B", "--> ")
 
 	// Layer 4: L3B (Approval)
-	renderer.AddApprovalTransition("L3B", "L3B_Review", "L4C", "L3B")
+	AddApprovalTransition(renderer, "L3B", "L3B_Review", "L4C", "L3B")
 
 	// Layer 4: L3C -> L4D
 	renderer.AddEdge("L3C", "L4D", "--> ")
@@ -416,7 +438,7 @@ func TestDiagramRenderer_DeepWithApproval(t *testing.T) {
 	renderer.AddEdge("L6A", "L7B", "--> ")
 
 	// Layer 7: L6B (Approval)
-	renderer.AddApprovalTransition("L6B", "L6B_Review", "L7C", "L6B")
+	AddApprovalTransition(renderer, "L6B", "L6B_Review", "L7C", "L6B")
 
 	// Layer 7: L6C -> L7D, L6D -> L7E
 	renderer.AddEdge("L6C", "L7D", "--> ")

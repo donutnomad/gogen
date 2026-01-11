@@ -2,15 +2,16 @@ package stateflowgen
 
 import (
 	"strings"
+
+	"github.com/mattn/go-runewidth"
 )
 
 // Const symbols for default consistent look
 const (
-	defaultArrow     = " --> " // Stem arrow
-	defaultJunction  = "+"
-	defaultVertical  = "│"
-	defaultLoop      = " 🔁"
-	defaultEdgeLabel = "--> " // Standard branch edge label (should include space at end)
+	defaultArrow    = "-->" // Stem arrow
+	defaultJunction = "+"
+	defaultVertical = "│"
+	defaultLoop     = " 🔁"
 )
 
 // Node represents a node in the graph
@@ -37,6 +38,7 @@ type DiagramRenderer struct {
 	edges *OrderedMap[string, []Edge]
 
 	// Configuration
+	ArrowSymbol    string // 默认箭头符号,用于节点间连接
 	JunctionSymbol string
 	VerticalSymbol string
 }
@@ -46,6 +48,7 @@ func NewDiagramRenderer() *DiagramRenderer {
 	return &DiagramRenderer{
 		nodes:          NewOrderedMap[string, Node](),
 		edges:          NewOrderedMap[string, []Edge](),
+		ArrowSymbol:    defaultArrow,
 		JunctionSymbol: defaultJunction,
 		VerticalSymbol: defaultVertical,
 	}
@@ -117,6 +120,11 @@ func (r *DiagramRenderer) SetNodeStyle(id, style string) {
 	r.nodes.Set(id, n)
 }
 
+// SetArrowSymbol 设置默认箭头符号
+func (r *DiagramRenderer) SetArrowSymbol(symbol string) {
+	r.ArrowSymbol = symbol
+}
+
 // AddEdge adds a directed edge
 // AddEdge adds a directed edge
 // If label is empty, defaults to "--> ".
@@ -126,51 +134,11 @@ func (r *DiagramRenderer) AddEdge(from, to, label string) {
 	r.ensureNode(to)
 
 	if label == "" {
-		label = defaultEdgeLabel
+		label = strings.TrimSpace(r.ArrowSymbol) + " "
 	}
 
 	edges, _ := r.edges.Get(from)
 	r.edges.Set(from, append(edges, Edge{From: from, To: to, Label: label}))
-}
-
-// --- Compatibility API ---
-
-// AddLegacyDirectTransition maps old API to new Generic API
-// In original code this was AddDirectTransition. We use that name.
-func (r *DiagramRenderer) AddDirectTransition(from, to string) {
-	r.AddEdge(from, to, "")
-}
-
-// AddApprovalTransition adds an approval flow (Draft -> Reviewing -> Published/Rejected)
-// Renders as:
-//
-//	+-- <Commit> --> to
-//	|
-//
-// from --> via (via)
-//
-//	|
-//	+-- <Reject> --> fallback
-func (r *DiagramRenderer) AddApprovalTransition(from, via, to, fallback string) {
-	// Replicate visual structure using generic edges
-
-	// 1. Top: Commit path
-	if to != "" {
-		r.AddEdge(from, to, "-- <Commit> --> ")
-	}
-
-	// 2. Middle: Via path
-	// Uses " " label and "approval" style to suppress center junction
-	r.AddEdge(from, via, " ")
-	r.AddNode(via, via+" (via)")
-
-	// 3. Bottom: Reject path
-	if fallback != "" {
-		r.AddEdge(from, fallback, "-- <Reject> --> ")
-	}
-
-	// Set style to "approval" to affect formatBranchOutput behavior
-	r.SetNodeStyle(from, "approval")
 }
 
 // Render generates the ASCII diagram
@@ -250,7 +218,7 @@ func (r *DiagramRenderer) renderSingleTarget(state string, edge Edge, visited ma
 	// Label usually goes: Node -- Label --> Target
 	prefix := nodeContent + " " + edge.Label
 
-	indent := strings.Repeat(" ", len(prefix))
+	indent := strings.Repeat(" ", runewidth.StringWidth(prefix))
 
 	var result []string
 	for i, line := range subLines {
@@ -428,9 +396,9 @@ func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine
 		}
 	}
 
-	// Stem prefix: "Node " + defaultArrow.
-	stemStr := nodeContent + " " + strings.TrimSpace(defaultArrow)
-	junctionIndent := strings.Repeat(" ", len(stemStr))
+	// Stem prefix: "Node " + ArrowSymbol.
+	stemStr := nodeContent + " " + strings.TrimSpace(r.ArrowSymbol)
+	junctionIndent := strings.Repeat(" ", runewidth.StringWidth(stemStr))
 
 	var result []string
 
@@ -510,7 +478,7 @@ func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine
 
 				// Simplification for now: use len(interSymbol) as a proxy,
 				// assuming user won't set wildly different lengths for symbols.
-				subIndent := strings.Repeat(" ", len(label))
+				subIndent := strings.Repeat(" ", runewidth.StringWidth(label))
 
 				lineStr = junctionIndent + marker + subIndent + lineData.content
 			}
