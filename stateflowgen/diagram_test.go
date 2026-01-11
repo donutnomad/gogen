@@ -12,7 +12,7 @@ func TestDiagramRenderer_SimpleLinear(t *testing.T) {
 	renderer.AddDirectTransition("B", "C")
 
 	result := renderer.Render()
-	expected := `A --> B --> C`
+	expected := "A --> B --> C"
 
 	if result != expected {
 		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
@@ -27,9 +27,11 @@ func TestDiagramRenderer_TwoBranches(t *testing.T) {
 
 	result := renderer.Render()
 	// 2个分支：B, |, C = 3行，中心行=1，在分隔符|上
-	expected := `     +--> B
-A -->+
-     +--> C`
+	expected := strings.Join([]string{
+		"     +--> B",
+		"A -->+",
+		"     +--> C",
+	}, "\n")
 
 	if result != expected {
 		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
@@ -45,11 +47,13 @@ func TestDiagramRenderer_ThreeBranches(t *testing.T) {
 
 	result := renderer.Render()
 	// 3个分支：B, |, C, |, D = 5行，中心行=2，在C分支上
-	expected := `     +--> B
-     |
-A -->+--> C
-     |
-     +--> D`
+	expected := strings.Join([]string{
+		"     +--> B",
+		"     |",
+		"A -->+--> C",
+		"     |",
+		"     +--> D",
+	}, "\n")
 
 	if result != expected {
 		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
@@ -66,13 +70,15 @@ func TestDiagramRenderer_FourBranches(t *testing.T) {
 
 	result := renderer.Render()
 	// 4个分支：B, |, C, |, D, |, E = 7行，中心行=3，在D分隔符|上
-	expected := `     +--> B
-     |
-     +--> C
-A -->+
-     +--> D
-     |
-     +--> E`
+	expected := strings.Join([]string{
+		"     +--> B",
+		"     |",
+		"     +--> C",
+		"A -->+",
+		"     +--> D",
+		"     |",
+		"     +--> E",
+	}, "\n")
 
 	if result != expected {
 		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
@@ -90,9 +96,13 @@ func TestDiagramRenderer_NestedBranches(t *testing.T) {
 	result := renderer.Render()
 	// B有两个分支：C-->E, D。总3行，中心行=1在分隔符上
 	// "A --> B -->" = 11字符
-	expected := `           +--> C --> E
-A --> B -->+
-           +--> D`
+	expected := strings.Join([]string{
+		"           +--> C --> E",
+		"           |",
+		"A --> B -->+",
+		"           |",
+		"           +--> D",
+	}, "\n")
 
 	if result != expected {
 		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
@@ -106,7 +116,7 @@ func TestDiagramRenderer_Cycle(t *testing.T) {
 	renderer.AddDirectTransition("B", "A")
 
 	result := renderer.Render()
-	expected := `A --> B --> A 🔁`
+	expected := "A --> B --> A 🔁"
 
 	if result != expected {
 		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
@@ -125,9 +135,13 @@ func TestDiagramRenderer_ComplexWorkflow(t *testing.T) {
 	result := renderer.Render()
 	// pending有两个分支：resolved-->closed, rejected-->open🔁，3行，中心=1
 	// "open --> pending -->" = 20字符
-	expected := `                    +--> resolved --> closed
-open --> pending -->+
-                    +--> rejected --> open 🔁`
+	expected := strings.Join([]string{
+		"                    +--> resolved --> closed",
+		"                    |",
+		"open --> pending -->+",
+		"                    |",
+		"                    +--> rejected --> open 🔁",
+	}, "\n")
 
 	if result != expected {
 		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
@@ -140,11 +154,13 @@ func TestDiagramRenderer_ApprovalTransition(t *testing.T) {
 	renderer.AddApprovalTransition("Draft", "Reviewing", "Published", "Draft")
 
 	result := renderer.Render()
-	expected := `          +-- <Commit> --> Published
-          |
-Draft --> Reviewing (via)
-          |
-          +-- <Reject> --> Draft 🔁`
+	expected := strings.Join([]string{
+		"          +-- <Commit> --> Published",
+		"          |",
+		"Draft --> Reviewing (via)",
+		"          |",
+		"          +-- <Reject> --> Draft 🔁",
+	}, "\n")
 
 	if result != expected {
 		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
@@ -158,11 +174,13 @@ func TestDiagramRenderer_ApprovalWithContinuation(t *testing.T) {
 	renderer.AddDirectTransition("Published", "Archived")
 
 	result := renderer.Render()
-	expected := `          +-- <Commit> --> Published --> Archived
-          |
-Draft --> Reviewing (via)
-          |
-          +-- <Reject> --> Draft 🔁`
+	expected := strings.Join([]string{
+		"          +-- <Commit> --> Published --> Archived",
+		"          |",
+		"Draft --> Reviewing (via)",
+		"          |",
+		"          +-- <Reject> --> Draft 🔁",
+	}, "\n")
 
 	if result != expected {
 		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
@@ -190,11 +208,13 @@ func TestDiagramRenderer_RenderAsComment(t *testing.T) {
 	renderer.AddDirectTransition("Init", "Done")
 
 	result := renderer.RenderAsComment()
-	expected := `// State Flow Diagram:
-// ` + "```" + `
-// Init --> Done
-// ` + "```" + `
-`
+	expected := strings.Join([]string{
+		"// State Flow Diagram:",
+		"// ```",
+		"// Init --> Done",
+		"// ```",
+		"",
+	}, "\n")
 
 	if result != expected {
 		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
@@ -433,7 +453,7 @@ func TestDiagramRenderer_SingleTransition(t *testing.T) {
 	renderer.AddDirectTransition("Init", "Running")
 
 	result := renderer.Render()
-	expected := `Init --> Running`
+	expected := "Init --> Running"
 
 	if result != expected {
 		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
@@ -446,7 +466,7 @@ func TestDiagramRenderer_SingleTerminal(t *testing.T) {
 	renderer.AddDirectTransition("Start", "End")
 
 	result := renderer.Render()
-	expected := `Start --> End`
+	expected := "Start --> End"
 
 	if result != expected {
 		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
