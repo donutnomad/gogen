@@ -11,17 +11,17 @@ import (
 
 // 流程图：
 // ```
-//                                                                                                                                           ┌──▶ Ready(Running) 🔁
-//                                                                                                                                           │
-//                                                                        ┌──▶ Ready(Stopped) ──▶ Terminating (via)── <COMMIT> ──▶ Terminated
-//                                                                        │                                                                  │
-//                                                                        │                                                                  └── <REJECT> ──▶ Ready(Stopped) 🔁
-//                                                                        │
-// Init ──▶ Ready(Running) ──▶ Terminating (via)── <COMMIT> ──▶ Terminated
-//                                                                        │
-//                                                                        │
-//                                                                        │
-//                                                                        └── <REJECT> ──▶ Ready(Running) 🔁
+//                                                                                                                                         ┌──▶ Ready(Running) 🔁
+//                                                                                                                                         │
+//                                                                       ┌──▶ Ready(Stopped) ──▶ Terminating (via)─┤── <COMMIT> ──▶ Terminated
+//                                                                       │                                                                 │
+//                                                                       │                                                                 └── <REJECT> ──▶ Ready(Stopped) 🔁
+//                                                                       │
+// Init ──▶ Ready(Running) ──▶ Terminating (via)─┤── <COMMIT> ──▶ Terminated
+//                                                                       │
+//                                                                       │
+//                                                                       │
+//                                                                       └── <REJECT> ──▶ Ready(Running) 🔁
 // ```
 
 // MachinePhase 阶段枚举

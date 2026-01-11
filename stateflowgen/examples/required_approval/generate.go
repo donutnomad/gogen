@@ -11,11 +11,11 @@ import (
 
 // 流程图：
 // ```
-//                          ┌── <COMMIT> ──▶ Published ──▶ Archived
-//                          │
-// Draft ──▶ Reviewing (via)
-//                          │
-//                          └── <REJECT> ──▶ Draft 🔁
+//                           ┌── <COMMIT> ──▶ Published ──▶ Archived
+//                           │
+// Draft ──▶ Reviewing (via)─┤
+//                           │
+//                           └── <REJECT> ──▶ Draft 🔁
 // ```
 
 // DocumentPhase 阶段枚举

@@ -13,14 +13,15 @@ const (
 
 // Node represents a node in the graph
 type Node struct {
-	ID           string
-	Content      string // Text to display (defaults to ID)
-	Junction     string // Custom junction symbol (defaults to global setting if empty)
-	CornerTop    string // Custom top corner symbol
-	CornerBottom string // Custom bottom corner symbol
-	Intersection string // Custom intersection symbol (middle branches)
-	Style        string // "approval" = classic approval style (no junction on center branch)
-	Align        string // Alignment of branches relative to junction ("right" = branch from right)
+	ID             string
+	Content        string // Text to display (defaults to ID)
+	Junction       string // Custom junction symbol (defaults to global setting if empty)
+	CornerTop      string // Custom top corner symbol
+	CornerBottom   string // Custom bottom corner symbol
+	Intersection   string // Custom intersection symbol (middle branches)
+	Style          string // "approval" = classic approval style (no junction on center branch)
+	Align          string // Alignment of branches relative to junction ("right" = branch from right)
+	JunctionIndent int16
 }
 
 // Edge represents a directed connection
@@ -78,11 +79,14 @@ func (r *DiagramRenderer) ensureNode(id string) {
 
 // SetJunction sets a custom junction symbol for a node and its alignment
 // align: "right" means branches start after the junction symbol
-func (r *DiagramRenderer) SetJunction(id, junction, align string) {
+func (r *DiagramRenderer) SetJunction(id, junction, align string, indent ...int) {
 	r.ensureNode(id)
 	n, _ := r.nodes.Get(id)
 	n.Junction = junction
 	n.Align = align
+	if len(indent) > 0 {
+		n.JunctionIndent = int16(indent[0])
+	}
 	r.nodes.Set(id, n)
 }
 
@@ -380,6 +384,7 @@ func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine
 	cornerTopSymbol := r.CornerTop    // Top
 	cornerBotSymbol := r.CornerBottom // Bottom
 	interSymbol := r.Intersection     // Middle intersections
+	junctionIndentAddition := int16(0)
 
 	isApprovalStyle := false
 	align := ""
@@ -401,6 +406,7 @@ func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine
 		if n.Style == "approval" {
 			isApprovalStyle = true
 		}
+		junctionIndentAddition = n.JunctionIndent
 		align = n.Align
 	}
 
@@ -458,6 +464,9 @@ func (r *DiagramRenderer) formatBranchOutput(state string, allLines []renderLine
 	} else if align != "" {
 		// Other non-empty alignments (future proofing), simplistic behavior
 		indentRef += stemSymbol
+	}
+	if int(junctionIndentAddition) < len(indentRef) {
+		indentRef = indentRef[0 : len(indentRef)-int(junctionIndentAddition)]
 	}
 
 	junctionIndent := genSpace(indentRef)

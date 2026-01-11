@@ -663,7 +663,7 @@ func (c *CodeGenerator) generateFlowDiagram(group *gg.Group) {
 			}
 
 			// 中间分支直接设置到 Junction
-			renderer.SetJunction(fromStr, "▶ "+viaStr+" (via)", "right")
+			renderer.SetJunction(fromStr, "▶ "+viaStr+" (via)─┤", "right", len("┤"))
 		} else {
 			// 直接流转
 			renderer.AddEdge(fromStr, toStr, "──▶ ")
