@@ -35,11 +35,11 @@ func TestDiagramRenderer_CustomArrowWithBranches(t *testing.T) {
 
 	result := renderer.Render()
 	expected := strings.Join([]string{
-		"     +──> B",
+		"     ┌──> B",
 		"     │",
-		"A ──>+",
+		"A ──>┤",
 		"     │",
-		"     +──> C",
+		"     └──> C",
 	}, "\n")
 
 	if result != expected {
