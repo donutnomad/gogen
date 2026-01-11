@@ -10,4 +10,4 @@ package wildcard
 // @Flow: Ready(Running)  => [ (Stopped) ]
 // @Flow: Ready(Stopped)  => [ (Running) ]
 // @Flow: Ready(*)        => [ Terminated! via Terminating ]
-const machineStateFlow = ""
+const _ = ""

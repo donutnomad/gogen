@@ -9,4 +9,4 @@ package shared_via
 // @Flow: Published  => [ Updated! via Reviewing ]
 // @Flow: Updated    => [ Archived! via Reviewing ]
 // @Flow: Archived   => [ Deleted ]
-const articleStateFlow = ""
+const _ = ""

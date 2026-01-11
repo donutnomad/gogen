@@ -10,4 +10,4 @@ package lowercase
 // @Flow: pending    => [ resolved, rejected ]
 // @Flow: rejected   => [ open ]
 // @Flow: resolved   => [ closed ]
-const ticketStateFlow = ""
+const _ = ""

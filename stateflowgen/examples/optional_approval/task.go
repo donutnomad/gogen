@@ -8,4 +8,4 @@ package optional_approval
 // @Flow: Draft       => [ Submitted ]
 // @Flow: Submitted   => [ Approved? via Reviewing ]
 // @Flow: Approved    => [ Done ]
-const taskStateFlow = ""
+const _ = ""

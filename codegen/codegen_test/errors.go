@@ -2,7 +2,7 @@ package codegen_test
 
 import "errors"
 
-//go:generate bash -c "cd ../../ && go build -o gotoolkit && ./gotoolkit gen ./codegen/codegen_test && go test ./codegen/codegen_test/..."
+//go:generate bash -c "cd ../../ && go build -o gogen && ./gogen gen ./codegen/codegen_test && go test ./codegen/codegen_test/..."
 
 // ErrUserNotFound
 // @Code(code=11001,http=404,grpc=NotFound)

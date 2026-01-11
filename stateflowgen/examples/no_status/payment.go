@@ -8,4 +8,4 @@ package no_status
 // @Flow: Pending   => [ Processing ]
 // @Flow: Processing=> [ Completed, Failed ]
 // @Flow: Failed    => [ Processing ]
-const paymentStateFlow = ""
+const _ = ""

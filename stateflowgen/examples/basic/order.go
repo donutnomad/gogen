@@ -8,4 +8,4 @@ package basic
 // @Flow: Paid        => [ Shipped ]
 // @Flow: Shipped     => [ Delivered ]
 // @Flow: Delivered   => [ Completed ]
-const orderStateFlow = ""
+const _ = ""

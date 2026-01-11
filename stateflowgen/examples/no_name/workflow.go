@@ -7,4 +7,4 @@ package no_name
 // @Flow: pending => [ approved, rejected ]
 // @Flow: approved => [ done ]
 // @Flow: rejected => [ pending ]
-const workflowStateFlow = ""
+const _ = ""

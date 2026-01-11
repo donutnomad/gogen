@@ -7,4 +7,4 @@ package required_approval
 // @StateFlow(name="Document")
 // @Flow: Draft       => [ Published! via Reviewing ]
 // @Flow: Published   => [ Archived ]
-const documentStateFlow = ""
+const _ = ""

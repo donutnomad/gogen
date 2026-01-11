@@ -9,4 +9,4 @@ package else_fallback
 // @Flow: Testing     => [ Production! via Deploying else Rollback ]
 // @Flow: Rollback    => [ Development ]
 // @Flow: Production  => [ Archived ]
-const releaseStateFlow = ""
+const _ = ""

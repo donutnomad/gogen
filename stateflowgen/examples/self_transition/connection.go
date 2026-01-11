@@ -8,4 +8,4 @@ package self_transition
 // @Flow: Disconnected => [ Connected ]
 // @Flow: Connected    => [ (=)? via Reconnecting ]
 // @Flow: Connected    => [ Disconnected ]
-const connectionStateFlow = ""
+const _ = ""
