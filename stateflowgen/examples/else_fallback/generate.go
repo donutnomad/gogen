@@ -11,11 +11,11 @@ import (
 
 // 流程图：
 // ```
-//                                             ┌── <COMMIT> ──▶ Production ──▶ Archived
-//                                             │
-// Development ──▶ Testing ──▶ Deploying (via)─┤
-//                                             │
-//                                             └── <REJECT> ──▶ Rollback ──▶ Development 🔁
+//                                               ┌── <COMMIT> ──▶ Production ──▶ Archived
+//                                               │
+// Development ──▶ Testing ──▶ Deploying (via) ──┤
+//                                               │
+//                                               └── <REJECT> ──▶ Rollback ──▶ Development 🔁
 // ```
 
 // ReleasePhase 阶段枚举

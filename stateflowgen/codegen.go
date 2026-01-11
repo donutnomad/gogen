@@ -639,28 +639,38 @@ func (c *CodeGenerator) generateFlowDiagram(group *gg.Group) {
 			// 2. 直接路径：decision -> to
 			renderer.AddEdge(decisionNode, toStr, "──▶ ")
 		} else if trans.Via.Phase != "" {
-			// 必须审批：从 from 分叉出三条边
-			//         ┌── <COMMIT> ──▶ to
-			//         │
-			// from ──┤──▶ via (via)
-			//         │
-			//         └── <REJECT> ──▶ fallback
+			// 必须审批：from -> via -> (Commit/Reject)
+			//                          ┌── <COMMIT> ──▶ to
+			//                          │
+			// from ──▶ via (via) ──┤
+			//                          │
+			//                          └── <REJECT> ──▶ fallback
 
 			viaStr := c.formatStage(trans.Via)
 			toStr := c.formatStage(trans.To)
 			fallbackStr := c.formatStage(trans.Fallback)
 
-			// 按顺序添加边：上(COMMIT)、下(REJECT)
+			// 为每个 from 创建独立的 via 节点，避免不同转换共用同一个 via 节点
+			viaNodeID := fromStr + "_" + viaStr + "_via"
+
+			// from -> via
+			renderer.AddNode(viaNodeID, viaStr+" (via)")
+			renderer.AddEdge(fromStr, viaNodeID, "──▶ ")
+
+			// via 分叉出 Commit 和 Reject
 			if toStr != "" {
-				renderer.AddEdge(fromStr, toStr, "── <COMMIT> ──▶ ")
+				renderer.AddEdge(viaNodeID, toStr, "── <COMMIT> ──▶ ")
 			}
-
 			if fallbackStr != "" {
-				renderer.AddEdge(fromStr, fallbackStr, "── <REJECT> ──▶ ")
+				// 如果 fallback 和 from 相同，使用 shadow 节点
+				if fallbackStr == fromStr {
+					fallbackNodeID := fallbackStr + "_fallback"
+					renderer.AddNode(fallbackNodeID, fallbackStr+" 🔁")
+					renderer.AddEdge(viaNodeID, fallbackNodeID, "── <REJECT> ──▶ ")
+				} else {
+					renderer.AddEdge(viaNodeID, fallbackStr, "── <REJECT> ──▶ ")
+				}
 			}
-
-			// 中间分支直接设置到 Junction
-			renderer.SetJunction(fromStr, "▶ "+viaStr+" (via)─┤", "right", len("┤"))
 		} else {
 			// 直接流转
 			renderer.AddEdge(fromStr, toStr, "──▶ ")
