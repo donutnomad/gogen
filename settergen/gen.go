@@ -6,6 +6,7 @@ import (
 
 	"github.com/donutnomad/gg"
 	"github.com/donutnomad/gogen/internal/gormparse"
+	"github.com/donutnomad/gogen/plugin"
 )
 
 // generateToMapMethod 生成 ToMap 方法（full 模式）
@@ -157,14 +158,8 @@ func safeParamName(fieldName string) string {
 	return paramName
 }
 
-// ImportWithAlias 带别名的 import 信息
-type ImportWithAlias struct {
-	Path  string
-	Alias string
-}
-
 // getSetterImports 获取 setter 模式所需的额外 imports
-func getSetterImports(model *gormparse.GormModelInfo) []ImportWithAlias {
+func getSetterImports(model *gormparse.GormModelInfo) []plugin.ImportWithAlias {
 	// 使用 map 去重，key 是 path，value 是 alias
 	imports := make(map[string]string)
 
@@ -182,9 +177,9 @@ func getSetterImports(model *gormparse.GormModelInfo) []ImportWithAlias {
 		}
 	}
 
-	result := make([]ImportWithAlias, 0, len(imports))
+	result := make([]plugin.ImportWithAlias, 0, len(imports))
 	for path, alias := range imports {
-		result = append(result, ImportWithAlias{Path: path, Alias: alias})
+		result = append(result, plugin.ImportWithAlias{Path: path, Alias: alias})
 	}
 	return result
 }

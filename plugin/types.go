@@ -204,6 +204,13 @@ func NewGenerateResult() *GenerateResult {
 	}
 }
 
+// ImportWithAlias 带别名的 import 信息
+// 用于代码生成时处理需要别名的包导入
+type ImportWithAlias struct {
+	Path  string // 导入路径，如 "github.com/xxx/domain"
+	Alias string // 别名，如 "domain"（当与路径最后一部分不同时需要，空表示无别名）
+}
+
 // AddDefinition 添加 gg 定义
 func (r *GenerateResult) AddDefinition(path string, gen *gg.Generator) {
 	if r.Definitions == nil {

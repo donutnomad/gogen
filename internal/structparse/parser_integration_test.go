@@ -247,3 +247,52 @@ func TestMaxEmbeddingDepth(t *testing.T) {
 	// 注意：这个测试需要专门的深度嵌套testdata
 	t.Skip("需要专门的深度嵌套testdata")
 }
+
+// TestParseAliasedEmbeddedStruct 测试带别名的跨包嵌入字段解析
+// 功能：验证当嵌入的外部包使用别名导入时，展开的字段能正确设置 PkgPath 和 PkgAlias
+// 场景：NodeSetPO 使用 `domain "path/to/approvalnode"` 导入并嵌入 domain.StateColumns，
+//
+//	展开后的 Phase 字段类型应为 domain.Phase，且 PkgPath 和 PkgAlias 正确设置
+//
+// 这是修复 issue: 嵌入字段展开时修改 Type 但未同步更新 PkgPath/PkgAlias 的回归测试
+func TestParseAliasedEmbeddedStruct(t *testing.T) {
+	filename := filepath.Join("testdata", "aliased_embedded", "po.go")
+	structName := "NodeSetPO"
+
+	info, err := ParseStruct(filename, structName)
+	require.NoError(t, err, "解析带别名嵌入的结构体失败")
+	require.NotNil(t, info, "结构体信息不应为空")
+
+	// 构建字段映射
+	fieldMap := make(map[string]FieldInfo)
+	for _, field := range info.Fields {
+		fieldMap[field.Name] = field
+	}
+
+	// 验证 NodeSetPO 自身的字段
+	id, ok := fieldMap["ID"]
+	assert.True(t, ok, "应该有 ID 字段")
+	assert.Equal(t, "uint64", id.Type, "ID 类型应为 uint64")
+	assert.Empty(t, id.PkgPath, "ID 不需要 PkgPath")
+
+	name, ok := fieldMap["Name"]
+	assert.True(t, ok, "应该有 Name 字段")
+	assert.Equal(t, "string", name.Type, "Name 类型应为 string")
+
+	// 验证从 domain.StateColumns 展开的 Phase 字段
+	// 这是关键测试点：展开后的字段应该有正确的类型和包信息
+	phase, ok := fieldMap["Phase"]
+	assert.True(t, ok, "应该有从 StateColumns 展开的 Phase 字段")
+	assert.Equal(t, "domain.Phase", phase.Type, "Phase 类型应为 domain.Phase（带包前缀）")
+	assert.Equal(t, "github.com/donutnomad/gogen/internal/structparse/testdata/aliased_embedded/approvalnode", phase.PkgPath,
+		"Phase 的 PkgPath 应为完整的导入路径")
+	assert.Equal(t, "domain", phase.PkgAlias,
+		"Phase 的 PkgAlias 应为别名 'domain'（因为导入路径最后部分 'approvalnode' 与使用的别名 'domain' 不同）")
+	assert.Equal(t, "domain.StateColumns", phase.SourceType, "Phase 应标记来源为 domain.StateColumns")
+
+	// 验证从 domain.StateColumns 展开的 Pending 字段
+	pending, ok := fieldMap["Pending"]
+	assert.True(t, ok, "应该有从 StateColumns 展开的 Pending 字段")
+	assert.Equal(t, "string", pending.Type, "Pending 类型应为 string（基础类型无需包前缀）")
+	assert.Equal(t, "domain.StateColumns", pending.SourceType, "Pending 应标记来源为 domain.StateColumns")
+}

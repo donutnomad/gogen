@@ -6,6 +6,7 @@ import (
 
 	"github.com/donutnomad/gg"
 	"github.com/donutnomad/gogen/internal/gormparse"
+	"github.com/donutnomad/gogen/plugin"
 )
 
 // generateModelCode 使用 gg 生成单个模型的代码
@@ -194,14 +195,8 @@ func generateModelCode(gen *gg.Generator, model *gormparse.GormModelInfo, gsqlPk
 	}
 }
 
-// ImportWithAlias 带别名的 import 信息
-type ImportWithAlias struct {
-	Path  string
-	Alias string
-}
-
 // getGormQueryImports 获取 Query 模式所需的额外 imports
-func getGormQueryImports(model *gormparse.GormModelInfo) []ImportWithAlias {
+func getGormQueryImports(model *gormparse.GormModelInfo) []plugin.ImportWithAlias {
 	// 使用 map 去重，key 是 path，value 是 alias
 	imports := make(map[string]string)
 
@@ -215,9 +210,9 @@ func getGormQueryImports(model *gormparse.GormModelInfo) []ImportWithAlias {
 		}
 	}
 
-	result := make([]ImportWithAlias, 0, len(imports))
+	result := make([]plugin.ImportWithAlias, 0, len(imports))
 	for path, alias := range imports {
-		result = append(result, ImportWithAlias{Path: path, Alias: alias})
+		result = append(result, plugin.ImportWithAlias{Path: path, Alias: alias})
 	}
 	return result
 }

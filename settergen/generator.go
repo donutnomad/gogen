@@ -202,9 +202,13 @@ func (g *SetterGenerator) generateDefinition(targets []*targetInfo) (*gg.Generat
 					if err != nil {
 						return nil, fmt.Errorf("生成 ToPatch 代码失败: %w", err)
 					}
-					// 添加 imports
+					// 添加 imports（支持别名）
 					for _, imp := range imports {
-						gen.P(imp)
+						if imp.Alias != "" {
+							gen.PAlias(imp.Path, imp.Alias)
+						} else {
+							gen.P(imp.Path)
+						}
 					}
 					gen.Body().AddString(code)
 				} else {

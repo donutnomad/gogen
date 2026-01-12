@@ -136,13 +136,35 @@ func (c *ParseContext) parseEmbeddedStructWithStack(structType string, stack map
 		return nil, fmt.Errorf("解析嵌入结构体 %s 失败: %v", structType, err)
 	}
 
-	// 为从嵌入结构体来的字段标记来源
+	// 为从嵌入结构体来的字段标记来源，并修正跨包类型引用
 	fields := make([]FieldInfo, len(structInfo.Fields))
 	for i, field := range structInfo.Fields {
 		fields[i] = field
 		// 如果字段已经有来源标记，保持原来的来源；否则标记为当前嵌入类型
 		if field.SourceType == "" {
 			fields[i].SourceType = structType
+		}
+
+		// 修正跨包类型引用：如果字段类型没有包前缀，但来源类型有包前缀，需要添加包前缀
+		// 例如：嵌入 domain.StateColumns 后，其中的 Phase 类型应该变成 domain.Phase
+		sourceType := fields[i].SourceType
+		if sourceType != "" {
+			if idx := strings.Index(sourceType, "."); idx >= 0 {
+				pkgPrefix := sourceType[:idx]
+				// 检查字段类型是否需要添加包前缀
+				// 条件：类型没有包前缀 && 类型首字母大写（非内置类型）
+				if !strings.Contains(field.Type, ".") && len(field.Type) > 0 && (field.Type[0] >= 'A' && field.Type[0] <= 'Z') {
+					fields[i].Type = pkgPrefix + "." + field.Type
+					// 使用调用者的 imports 查找正确的 PkgPath 和 PkgAlias
+					if info, exists := imports[pkgPrefix]; exists {
+						fields[i].PkgPath = info.ImportPath
+						// 如果使用了别名（别名与真实包名不同），设置 PkgAlias
+						if info.Alias != "" && info.Alias != info.PackageName {
+							fields[i].PkgAlias = info.Alias
+						}
+					}
+				}
+			}
 		}
 	}
 

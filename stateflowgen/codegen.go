@@ -8,13 +8,11 @@ import (
 	"github.com/donutnomad/gogen/internal/utils"
 )
 
-// CodeGenerator 代码生成器
 type CodeGenerator struct {
 	model *StateModel
 	gen   *gg.Generator
 }
 
-// NewCodeGenerator 创建代码生成器
 func NewCodeGenerator(model *StateModel, packageName string) *CodeGenerator {
 	gen := gg.New()
 	gen.SetPackage(packageName)
@@ -24,7 +22,6 @@ func NewCodeGenerator(model *StateModel, packageName string) *CodeGenerator {
 	}
 }
 
-// Generate 生成完整的代码
 func (c *CodeGenerator) Generate() (*gg.Generator, error) {
 	group := c.gen.Body()
 

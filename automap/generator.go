@@ -10,7 +10,7 @@ import (
 type Generator2 struct {
 	result      *ParseResult2
 	genFuncName string
-	imports     map[string]bool
+	imports     map[string]string // key: import path, value: alias (空表示无别名)
 
 	// 源类型信息（从解析获得）
 	sourcePackage string // 源类型的包名（如果是外部包）
@@ -31,16 +31,24 @@ func NewGenerator2(result *ParseResult2, genFuncName string) *Generator2 {
 	g := &Generator2{
 		result:        result,
 		genFuncName:   genFuncName,
-		imports:       make(map[string]bool),
+		imports:       make(map[string]string),
 		receiverType:  result.ReceiverType,
 		receiverVar:   receiverVar,
 		sourceType:    result.SourceType,
 		sourcePackage: result.SourceTypePackage,
 	}
 
-	// 如果源类型是外部包，添加导入
+	// 如果源类型是外部包，添加导入（带别名）
 	if result.SourceTypeImportPath != "" {
-		g.imports[result.SourceTypeImportPath] = true
+		alias := ""
+		// 检查是否需要别名（当包名与导入路径最后一部分不同时）
+		if result.SourceTypePackage != "" {
+			pathParts := strings.Split(result.SourceTypeImportPath, "/")
+			if len(pathParts) > 0 && pathParts[len(pathParts)-1] != result.SourceTypePackage {
+				alias = result.SourceTypePackage
+			}
+		}
+		g.imports[result.SourceTypeImportPath] = alias
 	}
 
 	return g
@@ -48,7 +56,7 @@ func NewGenerator2(result *ParseResult2, genFuncName string) *Generator2 {
 
 // Generate 生成代码
 // 返回: (带imports的完整代码, 纯函数代码, imports列表)
-func (g *Generator2) Generate() (string, string, []string) {
+func (g *Generator2) Generate() (string, string, []ImportWithAlias) {
 	var funcBuilder strings.Builder
 
 	// 生成函数签名
@@ -69,19 +77,26 @@ func (g *Generator2) Generate() (string, string, []string) {
 		funcCode = missingComment + funcCode
 	}
 
-	// 收集 imports 列表
-	importList := make([]string, 0, len(g.imports))
-	for imp := range g.imports {
-		importList = append(importList, imp)
+	// 收集 imports 列表（带别名）
+	importList := make([]ImportWithAlias, 0, len(g.imports))
+	for path, alias := range g.imports {
+		importList = append(importList, ImportWithAlias{Path: path, Alias: alias})
 	}
-	sort.Strings(importList)
+	// 按路径排序
+	sort.Slice(importList, func(i, j int) bool {
+		return importList[i].Path < importList[j].Path
+	})
 
 	// 生成带 imports 的完整代码
 	var fullBuilder strings.Builder
 	if len(g.imports) > 0 {
 		fullBuilder.WriteString("import (\n")
 		for _, imp := range importList {
-			fullBuilder.WriteString(fmt.Sprintf("\t\"%s\"\n", imp))
+			if imp.Alias != "" {
+				fullBuilder.WriteString(fmt.Sprintf("\t%s \"%s\"\n", imp.Alias, imp.Path))
+			} else {
+				fullBuilder.WriteString(fmt.Sprintf("\t\"%s\"\n", imp.Path))
+			}
 		}
 		fullBuilder.WriteString(")\n\n")
 	}
@@ -194,7 +209,7 @@ func (g *Generator2) generateEmbeddedMappings(builder *strings.Builder, group Ma
 // generateManyToOneMappings 生成多对一(JSON)映射代码
 func (g *Generator2) generateManyToOneMappings(builder *strings.Builder, group MappingGroup) {
 	// 需要 gsql 包
-	g.imports["github.com/donutnomad/gsql"] = true
+	g.imports["github.com/donutnomad/gsql"] = ""
 
 	// 获取 column 名称
 	columnName := ""
@@ -366,7 +381,7 @@ func (g *Generator2) validateFieldCoverage(generatedCode string) string {
 // receiverType: 接收者类型名（如 "ListingPO"）
 // funcName: 原函数名（如 "ToPO"）
 // genFuncName: 生成的函数名（如 "ToPatch"）
-func Generate2(filePath, receiverType, funcName, genFuncName string) (string, string, []string, error) {
+func Generate2(filePath, receiverType, funcName, genFuncName string) (string, string, []ImportWithAlias, error) {
 	// 解析映射关系
 	result, err := Parse(filePath, receiverType, funcName)
 	if err != nil {
@@ -384,7 +399,7 @@ func Generate2(filePath, receiverType, funcName, genFuncName string) (string, st
 // funcNameWithReceiver: "ReceiverType.FuncName" 格式，如 "ListingPO.ToPO"
 // genFuncName: 生成的函数名（如 "ToPatch"）
 // options: 选项，支持 WithFileContext
-func Generate2WithOptions(funcNameWithReceiver, genFuncName string, options ...Option) (string, string, []string, error) {
+func Generate2WithOptions(funcNameWithReceiver, genFuncName string, options ...Option) (string, string, []ImportWithAlias, error) {
 	// 解析函数名格式
 	parts := strings.Split(funcNameWithReceiver, ".")
 	if len(parts) != 2 {

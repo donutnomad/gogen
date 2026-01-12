@@ -1,8 +1,13 @@
 package automap
 
+import "github.com/donutnomad/gogen/plugin"
+
 // ============================================================================
 // 新的映射结果类型定义
 // ============================================================================
+
+// ImportWithAlias 类型别名，使用 plugin 包中的定义
+type ImportWithAlias = plugin.ImportWithAlias
 
 // MappingType 映射类型
 type MappingType string
