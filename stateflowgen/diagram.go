@@ -550,14 +550,12 @@ func (r *DiagramRenderer) RenderAsComment() string {
 
 	lines := strings.Split(content, "\n")
 	var sb strings.Builder
-	sb.WriteString("// 流程图：\n")
-	sb.WriteString("// ```\n")
+	sb.WriteString("/* Flowchart:\n")
 	for _, line := range lines {
-		sb.WriteString("// ")
 		sb.WriteString(line)
 		sb.WriteString("\n")
 	}
-	sb.WriteString("// ```\n")
+	sb.WriteString("*/\n")
 	return sb.String()
 }
 
