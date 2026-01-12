@@ -591,3 +591,14 @@ func (s State) ValidTransitions() []Stage {
 	}
 	return nil
 }
+
+func (s State) Next() []State {
+	if s.Pending != nil {
+		return nil
+	}
+	var result []State
+	for _, stage := range s.ValidTransitions() {
+		result = append(result, State{Current: stage})
+	}
+	return result
+}

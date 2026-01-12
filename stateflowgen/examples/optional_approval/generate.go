@@ -155,3 +155,14 @@ func (s TaskState) ValidTransitions() []TaskStage {
 	}
 	return nil
 }
+
+func (s TaskState) Next() []TaskState {
+	if s.Pending != nil {
+		return nil
+	}
+	var result []TaskState
+	for _, stage := range s.ValidTransitions() {
+		result = append(result, TaskState{Current: stage})
+	}
+	return result
+}

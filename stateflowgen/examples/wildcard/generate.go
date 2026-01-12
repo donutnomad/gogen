@@ -129,7 +129,7 @@ var (
 	ErrMachineNotInApproval      = errors.New("not in approval")
 )
 
-func (s MachineState) TransitionTo(to MachineStage, withApproval bool) (MachineState, error) {
+func (s MachineState) TransitionTo(to MachineStage) (MachineState, error) {
 	switch s.Current {
 	case StageMachineInit:
 		switch to {
@@ -188,4 +188,15 @@ func (s MachineState) ValidTransitions() []MachineStage {
 		return []MachineStage{StageMachineReadyRunning, StageMachineTerminated}
 	}
 	return nil
+}
+
+func (s MachineState) Next() []MachineState {
+	if s.Pending != nil {
+		return nil
+	}
+	var result []MachineState
+	for _, stage := range s.ValidTransitions() {
+		result = append(result, MachineState{Current: stage})
+	}
+	return result
 }

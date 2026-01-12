@@ -91,7 +91,7 @@ var (
 	ErrDocumentNotInApproval      = errors.New("not in approval")
 )
 
-func (s DocumentState) TransitionTo(to DocumentStage, withApproval bool) (DocumentState, error) {
+func (s DocumentState) TransitionTo(to DocumentStage) (DocumentState, error) {
 	switch s.Current {
 	case StageDocumentDraft:
 		switch to {
@@ -136,4 +136,15 @@ func (s DocumentState) ValidTransitions() []DocumentStage {
 		return []DocumentStage{StageDocumentArchived}
 	}
 	return nil
+}
+
+func (s DocumentState) Next() []DocumentState {
+	if s.Pending != nil {
+		return nil
+	}
+	var result []DocumentState
+	for _, stage := range s.ValidTransitions() {
+		result = append(result, DocumentState{Current: stage})
+	}
+	return result
 }

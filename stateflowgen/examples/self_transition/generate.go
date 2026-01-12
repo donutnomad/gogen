@@ -147,3 +147,14 @@ func (s ConnectionState) ValidTransitions() []ConnectionStage {
 	}
 	return nil
 }
+
+func (s ConnectionState) Next() []ConnectionState {
+	if s.Pending != nil {
+		return nil
+	}
+	var result []ConnectionState
+	for _, stage := range s.ValidTransitions() {
+		result = append(result, ConnectionState{Current: stage})
+	}
+	return result
+}

@@ -70,6 +70,7 @@ func (c *CodeGenerator) Generate() (*gg.Generator, error) {
 			c.generateIsApprovalPendingMethod(group)
 		}
 		c.generateValidTransitionsMethod(group)
+		c.generateNextMethod(group)
 	}
 
 	return c.gen, nil
@@ -287,7 +288,7 @@ func (c *CodeGenerator) generateTransitionMethod(group *gg.Group) {
 		WithReceiver("s", stateType).
 		AddParameter("to", stageType)
 
-	if c.model.HasApproval {
+	if c.model.HasOptionalApproval {
 		fn.AddParameter("withApproval", "bool")
 	}
 
@@ -492,6 +493,42 @@ func (c *CodeGenerator) generateValidTransitionsMethod(group *gg.Group) {
 	}
 
 	fn.AddBody(sw, gg.S("return nil"))
+	group.Append(fn)
+}
+
+// generateNextMethod 生成 Next 方法，返回当前状态所有可能的下一个状态
+func (c *CodeGenerator) generateNextMethod(group *gg.Group) {
+	stateType := c.model.Name + "State"
+
+	group.AddLine()
+
+	fn := gg.Function("Next").
+		WithReceiver("s", stateType).
+		AddResult("", fmt.Sprintf("[]%s", stateType))
+
+	if c.model.HasApproval {
+		// 如果有审批功能，Pending != nil 时返回 nil（审批中不能转换）
+		fn.AddBody(
+			gg.S("if s.Pending != nil {"),
+			gg.S("	return nil"),
+			gg.S("}"),
+			gg.S("var result []%s", stateType),
+			gg.S("for _, stage := range s.ValidTransitions() {"),
+			gg.S("	result = append(result, %s{Current: stage})", stateType),
+			gg.S("}"),
+			gg.S("return result"),
+		)
+	} else {
+		// 没有审批功能，直接转换 ValidTransitions
+		fn.AddBody(
+			gg.S("var result []%s", stateType),
+			gg.S("for _, stage := range s.ValidTransitions() {"),
+			gg.S("	result = append(result, %s{Current: stage})", stateType),
+			gg.S("}"),
+			gg.S("return result"),
+		)
+	}
+
 	group.Append(fn)
 }
 

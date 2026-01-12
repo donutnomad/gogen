@@ -106,3 +106,11 @@ func (s PaymentState) ValidTransitions() []PaymentStage {
 	}
 	return nil
 }
+
+func (s PaymentState) Next() []PaymentState {
+	var result []PaymentState
+	for _, stage := range s.ValidTransitions() {
+		result = append(result, PaymentState{Current: stage})
+	}
+	return result
+}

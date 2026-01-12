@@ -7,14 +7,15 @@ import (
 
 // StateModel 完整状态模型
 type StateModel struct {
-	Name        string              // 类型前缀
-	Phases      []string            // 所有 Phase（保持定义顺序）
-	PhaseStatus map[string][]string // Phase -> Status 列表
-	HasStatus   bool                // 是否有任何 Status 定义
-	HasApproval bool                // 是否有任何审批标记
-	Transitions []Transition        // 展开后的所有流转
-	InitStage   Stage               // 初始阶段
-	ViaPhases   []string            // via 中间状态列表
+	Name                string              // 类型前缀
+	Phases              []string            // 所有 Phase（保持定义顺序）
+	PhaseStatus         map[string][]string // Phase -> Status 列表
+	HasStatus           bool                // 是否有任何 Status 定义
+	HasApproval         bool                // 是否有任何审批标记（! 或 ?）
+	HasOptionalApproval bool                // 是否有可选审批标记（?）
+	Transitions         []Transition        // 展开后的所有流转
+	InitStage           Stage               // 初始阶段
+	ViaPhases           []string            // via 中间状态列表
 }
 
 // Stage 阶段（Phase + Status）
@@ -132,6 +133,9 @@ func BuildModel(config *StateFlowConfig, rules []*FlowRule) (*StateModel, error)
 			// 检查审批标记
 			if target.ApprovalRequired || target.ApprovalOptional {
 				model.HasApproval = true
+			}
+			if target.ApprovalOptional {
+				model.HasOptionalApproval = true
 			}
 		}
 	}

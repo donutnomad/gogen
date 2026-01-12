@@ -99,7 +99,7 @@ var (
 	ErrReleaseNotInApproval      = errors.New("not in approval")
 )
 
-func (s ReleaseState) TransitionTo(to ReleaseStage, withApproval bool) (ReleaseState, error) {
+func (s ReleaseState) TransitionTo(to ReleaseStage) (ReleaseState, error) {
 	switch s.Current {
 	case StageReleaseDevelopment:
 		switch to {
@@ -158,4 +158,15 @@ func (s ReleaseState) ValidTransitions() []ReleaseStage {
 		return []ReleaseStage{StageReleaseDevelopment}
 	}
 	return nil
+}
+
+func (s ReleaseState) Next() []ReleaseState {
+	if s.Pending != nil {
+		return nil
+	}
+	var result []ReleaseState
+	for _, stage := range s.ValidTransitions() {
+		result = append(result, ReleaseState{Current: stage})
+	}
+	return result
 }

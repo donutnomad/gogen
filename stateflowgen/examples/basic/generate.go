@@ -111,3 +111,11 @@ func (s OrderState) ValidTransitions() []OrderStage {
 	}
 	return nil
 }
+
+func (s OrderState) Next() []OrderState {
+	var result []OrderState
+	for _, stage := range s.ValidTransitions() {
+		result = append(result, OrderState{Current: stage})
+	}
+	return result
+}

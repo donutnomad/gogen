@@ -162,7 +162,7 @@ var (
 	ErrServerNotInApproval      = errors.New("not in approval")
 )
 
-func (s ServerState) TransitionTo(to ServerStage, withApproval bool) (ServerState, error) {
+func (s ServerState) TransitionTo(to ServerStage) (ServerState, error) {
 	switch s.Current {
 	case StageServerInit:
 		switch to {
@@ -243,4 +243,15 @@ func (s ServerState) ValidTransitions() []ServerStage {
 		return []ServerStage{StageServerDeleted}
 	}
 	return nil
+}
+
+func (s ServerState) Next() []ServerState {
+	if s.Pending != nil {
+		return nil
+	}
+	var result []ServerState
+	for _, stage := range s.ValidTransitions() {
+		result = append(result, ServerState{Current: stage})
+	}
+	return result
 }

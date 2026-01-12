@@ -108,7 +108,7 @@ var (
 	ErrArticleNotInApproval      = errors.New("not in approval")
 )
 
-func (s ArticleState) TransitionTo(to ArticleStage, withApproval bool) (ArticleState, error) {
+func (s ArticleState) TransitionTo(to ArticleStage) (ArticleState, error) {
 	switch s.Current {
 	case StageArticleDraft:
 		switch to {
@@ -173,4 +173,15 @@ func (s ArticleState) ValidTransitions() []ArticleStage {
 		return []ArticleStage{StageArticleDeleted}
 	}
 	return nil
+}
+
+func (s ArticleState) Next() []ArticleState {
+	if s.Pending != nil {
+		return nil
+	}
+	var result []ArticleState
+	for _, stage := range s.ValidTransitions() {
+		result = append(result, ArticleState{Current: stage})
+	}
+	return result
 }

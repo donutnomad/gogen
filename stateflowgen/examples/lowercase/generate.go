@@ -117,3 +117,11 @@ func (s TicketState) ValidTransitions() []TicketStage {
 	}
 	return nil
 }
+
+func (s TicketState) Next() []TicketState {
+	var result []TicketState
+	for _, stage := range s.ValidTransitions() {
+		result = append(result, TicketState{Current: stage})
+	}
+	return result
+}
