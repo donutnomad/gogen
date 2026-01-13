@@ -1,0 +1,45 @@
+{{- /* 生成查询相关的代码 */ -}}
+{{- range .Structs }}
+{{- $structName := .Name }}
+{{- if .Defines.Table }}
+// {{ .Name }}Query provides query builder for {{ (.Defines.Table.tablename).StringVal }}
+type {{ .Name }}Query struct {
+	tableName string
+	schema    string
+	fields    []string
+	where     []string
+}
+
+func New{{ .Name }}Query() *{{ .Name }}Query {
+	return &{{ .Name }}Query{
+		tableName: "{{ (.Defines.Table.tablename).StringVal }}",
+		schema:    "{{ (.Defines.Table.schema).StringVal }}",
+		fields:    []string{
+{{- if .Defines.Fields }}
+{{- range $key, $type := .Defines.Fields }}
+			"{{ $key }}",
+{{- end }}
+{{- end }}
+		},
+	}
+}
+
+func (q *{{ .Name }}Query) Select(fields ...string) *{{ .Name }}Query {
+	q.fields = fields
+	return q
+}
+
+func (q *{{ .Name }}Query) Where(condition string) *{{ .Name }}Query {
+	q.where = append(q.where, condition)
+	return q
+}
+
+func (q *{{ .Name }}Query) Build() string {
+	return fmt.Sprintf("SELECT %s FROM %s.%s",
+		strings.Join(q.fields, ", "),
+		q.schema,
+		q.tableName,
+	)
+}
+{{- end }}
+{{- end }}

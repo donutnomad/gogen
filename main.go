@@ -15,6 +15,7 @@ import (
 	"github.com/donutnomad/gogen/slicegen"
 	"github.com/donutnomad/gogen/stateflowgen"
 	"github.com/donutnomad/gogen/swaggen"
+	"github.com/donutnomad/gogen/templategen"
 	"github.com/samber/lo"
 )
 
@@ -27,6 +28,7 @@ func init() {
 	plugin.MustRegister(swaggen.NewSwagGenerator())
 	plugin.MustRegister(codegen.NewCodeGenerator())
 	plugin.MustRegister(stateflowgen.NewStateFlowGenerator())
+	plugin.MustRegister(templategen.NewTemplateGenerator())
 }
 
 var (

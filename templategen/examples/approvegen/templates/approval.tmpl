@@ -1,0 +1,233 @@
+{{- /* Approval 代码生成模板 */ -}}
+{{- $pkg := .File.PackageName -}}
+{{- $module := "" -}}
+{{- $refType := "" -}}
+
+{{- /* 收集 UseCase 信息 */ -}}
+{{- range .Structs -}}
+{{- if .Defines.Approval -}}
+{{- $module = (.Defines.Approval.module).StringVal -}}
+{{- $refType = (.Defines.Approval.reftype).StringVal -}}
+{{- end -}}
+{{- end -}}
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+
+	"github.com/bytedance/sonic"
+)
+
+// ========================== Interfaces ==========================
+
+type IPostUseCase interface {
+{{- range .Structs }}
+{{- range .Methods }}
+{{- if .Defines.Post }}
+{{- if eq (.Defines.Post.haspost).StringVal "true" }}
+	Post{{ .Name }}(ctx context.Context{{ range .Params }}{{ if ne .Name "ctx" }}, {{ .Name }} {{ .Type }}{{ end }}{{ end }}, body {{ (.Defines.Method.bodytype).FullType }}, result ApprovalResult) error
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+}
+
+type IApprovalFormatter interface {
+{{- range .Structs }}
+{{- range .Methods }}
+{{- if .Defines.Method }}
+	Format{{ .Name }}(ctx context.Context{{ range .Params }}{{ if ne .Name "ctx" }}, {{ .Name }} {{ .Type }}{{ end }}{{ end }}, raw any) (any, error)
+{{- end }}
+{{- end }}
+{{- end }}
+}
+
+// ========================== Method Arg Structs ==========================
+{{- range .Structs }}
+{{- $structName := .Name }}
+{{- range .Methods }}
+{{- if .Defines.Method }}
+
+type _{{ $structName }}Method{{ .Name }} struct {
+{{- range .Params }}
+{{- if ne .Name "ctx" }}
+	{{ .Name | title }} {{ .Type }}
+{{- end }}
+{{- end }}
+}
+
+func (p *_{{ $structName }}Method{{ .Name }}) MethodName() string {
+	return "{{ $pkg }}_{{ $structName }}_{{ .Name }}"
+}
+{{- end }}
+{{- end }}
+{{- end }}
+
+// ========================== Approval Methods ==========================
+{{- range .Structs }}
+{{- $structName := .Name }}
+{{- $receiver := .Name | lower | substr 0 1 }}
+{{- if .Defines.Approval }}
+
+func ({{ $receiver }} *{{ $structName }}) CreateApproval(ctx context.Context, module, event string, arg interface {
+	MethodName() string
+}, detail any) error {
+	// TODO: Implement approval creation logic
+	return nil
+}
+{{- end }}
+
+{{- range .Methods }}
+{{- if .Defines.Method }}
+
+func ({{ $receiver }} *{{ $structName }}) ApproveFor{{ .Name }}(
+	ctx context.Context,
+{{- range .Params }}
+{{- if ne .Name "ctx" }}
+	{{ .Name }} {{ .Type }},
+{{- end }}
+{{- end }}
+	formatter IApprovalFormatter,
+) error {
+	arg := &_{{ $structName }}Method{{ .Name }}{
+{{- range .Params }}
+{{- if ne .Name "ctx" }}
+		{{ .Name | title }}: {{ .Name }},
+{{- end }}
+{{- end }}
+	}
+	detail, err := (&ApprovalCaller{formatter: formatter}).Format(ctx, arg)
+	if err != nil {
+		return err
+	}
+	return {{ $receiver }}.CreateApproval(ctx, "{{ $module }}", "{{ (.Defines.Method.event).StringVal }}", arg, detail)
+}
+{{- end }}
+{{- end }}
+{{- end }}
+
+// ========================== ApprovalCaller ==========================
+
+type ApprovalCaller struct {
+	targets   []any
+	formatter IApprovalFormatter
+}
+
+func NewApprovalCaller(formatter IApprovalFormatter, targets ...any) *ApprovalCaller {
+	return &ApprovalCaller{targets: targets, formatter: formatter}
+}
+
+func (amc *ApprovalCaller) Call(ctx context.Context, arg any, approved bool) (any, error) {
+	switch p := arg.(type) {
+{{- range .Structs }}
+{{- $structName := .Name }}
+{{- range .Methods }}
+{{- if .Defines.Method }}
+	case *_{{ $structName }}Method{{ .Name }}:
+		type ApprovedInterface interface {
+			{{ .Name }}(ctx context.Context{{ range .Params }}{{ if ne .Name "ctx" }}, {{ .Name }} {{ .Type }}{{ end }}{{ end }}) error
+		}
+		for _, t := range amc.targets {
+			if approved {
+				if target, ok := t.(ApprovedInterface); ok {
+					err := target.{{ .Name }}(ctx{{ range .Params }}{{ if ne .Name "ctx" }}, p.{{ .Name | title }}{{ end }}{{ end }})
+					if err != nil {
+						return nil, err
+					}
+					return nil, nil
+				}
+			}
+		}
+		if !approved {
+			return nil, nil
+		}
+{{- end }}
+{{- end }}
+{{- end }}
+	}
+	return nil, errors.New("CodeUnknownMethod")
+}
+
+func (amc *ApprovalCaller) UnmarshalMethodArgs(method string, content string) (any, error) {
+	switch method {
+{{- range .Structs }}
+{{- $structName := .Name }}
+{{- range .Methods }}
+{{- if .Defines.Method }}
+	case "{{ $pkg }}_{{ $structName }}_{{ .Name }}":
+		var p _{{ $structName }}Method{{ .Name }}
+		if err := sonic.Unmarshal([]byte(content), &p); err != nil {
+			return nil, err
+		}
+		return &p, nil
+{{- end }}
+{{- end }}
+{{- end }}
+	default:
+		return nil, nil
+	}
+}
+
+func (amc *ApprovalCaller) Format(ctx context.Context, arg any) (any, error) {
+	switch v := arg.(type) {
+{{- range .Structs }}
+{{- $structName := .Name }}
+{{- range .Methods }}
+{{- if .Defines.Method }}
+	case *_{{ $structName }}Method{{ .Name }}:
+		return amc.formatter.Format{{ .Name }}(ctx{{ range .Params }}{{ if ne .Name "ctx" }}, v.{{ .Name | title }}{{ end }}{{ end }}, v)
+{{- end }}
+{{- end }}
+{{- end }}
+	}
+	return nil, errors.Join(errors.New("CodeUnsupportedArgType"), fmt.Errorf("unsupported arg type %T", arg))
+}
+
+// ========================== Caller (Vote Completion Handler) ==========================
+
+type Caller struct {
+	useCase  IPostUseCase
+	voteRepo any // vote.Repo
+}
+
+func NewCaller(useCase IPostUseCase, voteRepo any) *Caller {
+	return &Caller{useCase: useCase, voteRepo: voteRepo}
+}
+
+func (c *Caller) Call(ctx context.Context, event any) error {
+	// TODO: Implement vote completion handling
+	// 1. Get vote job by refType and refID
+	// 2. Parse method args using ApprovalCaller.UnmarshalMethodArgs
+	// 3. Dispatch to appropriate Post{Method} based on method name
+
+	/*
+	method, err := (&ApprovalCaller{}).UnmarshalMethodArgs(job.Method.Method, job.Method.MethodArgs)
+	if err != nil {
+		return err
+	}
+	switch v := method.(type) {
+{{- range .Structs }}
+{{- $structName := .Name }}
+{{- range .Methods }}
+{{- if .Defines.Method }}
+{{- if .Defines.Post }}
+{{- if eq (.Defines.Post.haspost).StringVal "true" }}
+	case *_{{ $structName }}Method{{ .Name }}:
+		var bodyData VoteData[any, {{ (.Defines.Method.bodytype).FullType }}]
+		if err := json.Unmarshal(job.Body, &bodyData); err != nil {
+			return err
+		}
+		return c.useCase.Post{{ .Name }}(ctx{{ range .Params }}{{ if ne .Name "ctx" }}, v.{{ .Name | title }}{{ end }}{{ end }}, bodyData.Raw, approvalResult)
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+	default:
+		return errors.New("unsupported method")
+	}
+	*/
+	return nil
+}

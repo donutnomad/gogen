@@ -1,0 +1,16 @@
+{{- /* 基础模板 - 定义可复用的模板块 */ -}}
+
+{{- define "header" -}}
+// Auto-generated CRUD operations
+// Table: {{ (.Defines.CRUD.table).StringVal }}
+// Soft Delete: {{ (.Defines.CRUD.softdelete).StringVal }}
+{{- end -}}
+
+{{- define "receiver" -}}
+{{- . | lower | substr 0 1 -}}
+{{- end -}}
+
+{{- define "methodComment" -}}
+// {{ .Name }}WithLog wraps {{ .Name }} with logging
+// Action: {{ (.Defines.Op.action).StringVal }}
+{{- end -}}

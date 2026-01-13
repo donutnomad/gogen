@@ -1,0 +1,11 @@
+{{- range .Structs }}
+// {{ .Name }} Getters
+// Description: {{ (.Defines.Config.description).StringVal }}
+{{- $structName := .Name }}
+{{- range .Fields }}
+
+func (s *{{ $structName }}) Get{{ .Name | title }}() {{ .Type }} {
+	return s.{{ .Name }}
+}
+{{- end }}
+{{- end }}

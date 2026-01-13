@@ -1,0 +1,32 @@
+{{- range .Structs }}
+// {{ .Name }}Methods 为 {{ .Name }} 生成的方法
+{{ $structName := .Name }}
+{{- if .Defines.IO }}
+{{- with .Defines.IO.reader }}
+func (s *{{ $structName }}) GetReader() {{ .FullType }} {
+	return s.reader
+}
+{{- end }}
+{{- if .Defines.IO.timeout }}
+// Timeout: {{ (.Defines.IO.timeout).StringVal }}
+func (s *{{ $structName }}) GetTimeout() string {
+	return "{{ (.Defines.IO.timeout).StringVal }}"
+}
+{{- end }}
+{{- end }}
+
+{{- range .Methods }}
+{{- if .Defines.Meta }}
+// {{ .Name }}WithAuth 添加权限检查
+// Permission: {{ (.Defines.Meta.permission).StringVal }}
+// Audit: {{ (.Defines.Meta.audit).StringVal }}
+func ({{ .ReceiverName }} *{{ $structName }}) {{ .Name }}WithAuth({{ formatParams .Params }}) {{ formatReturns .Returns }} {
+	// Permission check: {{ (.Defines.Meta.permission).StringVal }}
+	{{- if eq (.Defines.Meta.audit).StringVal "true" }}
+	// Audit logging enabled
+	{{- end }}
+	return {{ .ReceiverName }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if $i }}, {{ end }}{{ $p.Name }}{{ end }})
+}
+{{- end }}
+{{- end }}
+{{- end }}

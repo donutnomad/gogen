@@ -1,0 +1,25 @@
+{{- /* 复杂类型引用示例 - 生成 HTTP 路由注册代码 */ -}}
+{{- range .Structs }}
+{{- $structName := .Name }}
+{{- $meta := .Defines.Meta }}
+{{- if $meta }}
+{{- if $meta.basepath }}
+// {{ .Name }} Routes
+// Base path: {{ $meta.basepath.StringVal }}
+// Version: {{ $meta.version.StringVal }}
+
+func Register{{ .Name }}Routes(mux *http.ServeMux, handler *{{ .Name }}) {
+{{- range .Methods }}
+{{- $config := .Defines.Config }}
+{{- if $config }}
+	// {{ $config.method.StringVal }} {{ $meta.basepath.StringVal }}{{ $config.path.StringVal }}
+	{{- if eq $config.auth.StringVal "true" }}
+	// Requires authentication
+	{{- end }}
+	mux.HandleFunc("{{ $config.method.StringVal }} {{ $meta.basepath.StringVal }}{{ $config.path.StringVal }}", handler.{{ .Name }})
+{{- end }}
+{{- end }}
+}
+{{- end }}
+{{- end }}
+{{- end }}

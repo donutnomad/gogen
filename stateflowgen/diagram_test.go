@@ -408,15 +408,14 @@ func TestDiagramRenderer_RenderAsComment(t *testing.T) {
 
 	result := renderer.RenderAsComment()
 	expected := strings.Join([]string{
-		"// 流程图：",
-		"// ```",
-		"// Init --> Done",
-		"// ```",
+		"/* Flowchart:",
+		"Init --> Done",
+		"*/",
 		"",
 	}, "\n")
 
 	if result != expected {
-		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
+		t.Errorf("Expected:\n%q\n\nGot:\n%q", expected, result)
 	}
 }
 

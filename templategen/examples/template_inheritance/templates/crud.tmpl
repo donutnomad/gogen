@@ -1,0 +1,19 @@
+{{- /* CRUD 模板 - 使用基础模板中定义的块 */ -}}
+{{- range .Structs }}
+{{- $structName := .Name }}
+{{- if .Defines.CRUD }}
+{{ template "header" . }}
+
+{{- range .Methods }}
+{{- if .Defines.Op }}
+
+{{ template "methodComment" . }}
+func ({{ template "receiver" $structName }} *{{ $structName }}) {{ .Name }}WithLog({{ formatParams .Params }}) {{ formatReturns .Returns }} {
+	log.Printf("[{{ (.Defines.Op.action).StringVal | upper }}] {{ $structName }}.{{ .Name }} called")
+	defer log.Printf("[{{ (.Defines.Op.action).StringVal | upper }}] {{ $structName }}.{{ .Name }} completed")
+	return {{ template "receiver" $structName }}.{{ .Name }}({{ range $i, $p := .Params }}{{ if $i }}, {{ end }}{{ $p.Name }}{{ end }})
+}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

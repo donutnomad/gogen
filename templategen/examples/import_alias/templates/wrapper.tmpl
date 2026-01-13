@@ -1,0 +1,20 @@
+{{- /* 使用 @Import 注解定义的包别名 */ -}}
+{{- range .Structs }}
+// {{ .Name }} wrapper methods
+{{- $structName := .Name }}
+
+{{- range .Methods }}
+{{- if .Defines.Method }}
+// {{ .Name }}WithContext wraps {{ .Name }} with additional context
+// Operation: {{ (.Defines.Method.operation).StringVal }}
+func (e *{{ $structName }}) {{ .Name }}WithContext({{ formatParams .Params }}) {{ formatReturns .Returns }} {
+	{{- if eq (.Defines.Method.operation).StringVal "create" }}
+	// Pre-create validation
+	{{- else if eq (.Defines.Method.operation).StringVal "delete" }}
+	// Pre-delete confirmation
+	{{- end }}
+	return e.{{ .Name }}({{ range $i, $p := .Params }}{{ if $i }}, {{ end }}{{ $p.Name }}{{ end }})
+}
+{{- end }}
+{{- end }}
+{{- end }}

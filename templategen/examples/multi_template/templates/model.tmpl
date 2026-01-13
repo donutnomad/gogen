@@ -1,0 +1,20 @@
+{{- /* 生成模型相关的代码 */ -}}
+{{- range .Structs }}
+{{- $structName := .Name }}
+{{- if .Defines.Table }}
+// {{ .Name }}Model provides model methods for {{ (.Defines.Table.tablename).StringVal }}
+type {{ .Name }}Model struct {
+	*{{ .Name }}
+}
+
+func New{{ .Name }}Model() *{{ .Name }}Model {
+	return &{{ .Name }}Model{
+		{{ .Name }}: &{{ .Name }}{},
+	}
+}
+
+func (m *{{ .Name }}Model) TableName() string {
+	return "{{ (.Defines.Table.schema).StringVal }}.{{ (.Defines.Table.tablename).StringVal }}"
+}
+{{- end }}
+{{- end }}
