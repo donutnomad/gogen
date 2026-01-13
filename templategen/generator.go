@@ -6,6 +6,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -618,12 +619,8 @@ func findProjectRoot(dir string) string {
 
 // fileExists 检查文件是否存在
 func fileExists(path string) bool {
-	_, err := filepath.Abs(path)
-	if err != nil {
-		return false
-	}
-	// 简单检查
-	return true
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 // extractFields 从 AST 节点提取字段
