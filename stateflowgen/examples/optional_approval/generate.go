@@ -9,18 +9,17 @@ import (
 
 // ================ stateflow ================
 
-// 流程图：
-// ```
-//                                                               ┌── <COMMIT> ──▶ Approved ──▶ Done
-//                                                               │
-//                                        ┌──▶ Reviewing (via) ──┤
-//                                        │                      │
-//                                        │                      └── <REJECT> ──▶ Submitted 🔁
-// Draft ──▶ Submitted ──▶ <?APPROVAL?> ──┤
-//                                        │
-//                                        │
-//                                        └──▶ Approved ──▶ Done
-// ```
+/* Flowchart:
+                                                              ┌── <COMMIT> ──▶ Approved ──▶ Done
+                                                              │
+                                       ┌──▶ Reviewing (via) ──┤
+                                       │                      │
+                                       │                      └── <REJECT> ──▶ Submitted 🔁
+Draft ──▶ Submitted ──▶ <?APPROVAL?> ──┤
+                                       │
+                                       │
+                                       └──▶ Approved ──▶ Done
+*/
 
 // TaskPhase 阶段枚举
 type TaskPhase string

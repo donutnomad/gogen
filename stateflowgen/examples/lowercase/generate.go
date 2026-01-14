@@ -5,14 +5,13 @@ import "errors"
 
 // ================ stateflow ================
 
-// 流程图：
-// ```
-//                    ┌──▶ resolved ──▶ closed
-//                    │
-// open ──▶ pending ──┤
-//                    │
-//                    └──▶ rejected ──▶ open 🔁
-// ```
+/* Flowchart:
+                   ┌──▶ resolved ──▶ closed
+                   │
+open ──▶ pending ──┤
+                   │
+                   └──▶ rejected ──▶ open 🔁
+*/
 
 // TicketPhase 阶段枚举
 type TicketPhase string

@@ -9,27 +9,26 @@ import (
 
 // ================ stateflow ================
 
-// 流程图：
-// ```
-//                                                 ┌──▶ Ready(Running) 🔁
-//                                                 │
-//                                                 │
-//                           ┌──▶ Ready(Stopped) ──┤
-//                           │                     │                        ┌── <COMMIT> ──▶ Terminated
-//                           │                     │                        │
-//                           │                     └──▶ Terminating (via) ──┤
-//                           │                                              │
-//                           │                                              └── <REJECT> ──▶ Ready(Stopped) 🔁
-// Init ──▶ Ready(Running) ──┤
-//                           │
-//                           │
-//                           │
-//                           │                        ┌── <COMMIT> ──▶ Terminated
-//                           │                        │
-//                           └──▶ Terminating (via) ──┤
-//                                                    │
-//                                                    └── <REJECT> ──▶ Ready(Running) 🔁
-// ```
+/* Flowchart:
+                                                ┌──▶ Ready(Running) 🔁
+                                                │
+                                                │
+                          ┌──▶ Ready(Stopped) ──┤
+                          │                     │                        ┌── <COMMIT> ──▶ Terminated
+                          │                     │                        │
+                          │                     └──▶ Terminating (via) ──┤
+                          │                                              │
+                          │                                              └── <REJECT> ──▶ Ready(Stopped) 🔁
+Init ──▶ Ready(Running) ──┤
+                          │
+                          │
+                          │
+                          │                        ┌── <COMMIT> ──▶ Terminated
+                          │                        │
+                          └──▶ Terminating (via) ──┤
+                                                   │
+                                                   └── <REJECT> ──▶ Ready(Running) 🔁
+*/
 
 // MachinePhase 阶段枚举
 type MachinePhase string

@@ -5,14 +5,13 @@ import "errors"
 
 // ================ stateflow ================
 
-// 流程图：
-// ```
-//                          ┌──▶ Completed
-//                          │
-// Pending ──▶ Processing ──┤
-//                          │
-//                          └──▶ Failed ──▶ Processing 🔁
-// ```
+/* Flowchart:
+                         ┌──▶ Completed
+                         │
+Pending ──▶ Processing ──┤
+                         │
+                         └──▶ Failed ──▶ Processing 🔁
+*/
 
 // PaymentPhase 阶段枚举
 type PaymentPhase string

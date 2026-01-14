@@ -9,14 +9,13 @@ import (
 
 // ================ stateflow ================
 
-// 流程图：
-// ```
-//                                               ┌── <COMMIT> ──▶ Production ──▶ Archived
-//                                               │
-// Development ──▶ Testing ──▶ Deploying (via) ──┤
-//                                               │
-//                                               └── <REJECT> ──▶ Rollback ──▶ Development 🔁
-// ```
+/* Flowchart:
+                                              ┌── <COMMIT> ──▶ Production ──▶ Archived
+                                              │
+Development ──▶ Testing ──▶ Deploying (via) ──┤
+                                              │
+                                              └── <REJECT> ──▶ Rollback ──▶ Development 🔁
+*/
 
 // ReleasePhase 阶段枚举
 type ReleasePhase string

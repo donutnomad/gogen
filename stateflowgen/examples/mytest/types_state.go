@@ -9,25 +9,24 @@ import (
 
 // ================ stateflow ================
 
-// 流程图：
-// ```
-//                                                                                                        ┌──▶ deployed
-//                                                                                                        │
-//                                           ┌── <COMMIT> ──▶ creation_initiated ──▶ creation_submitted ──┤
-//                                           │                                                            │
-//                                           │                                                            └──▶ deploy_failed
-//                         ┌──▶ none (via) ──┤
-//                         │                 │
-//                         │                 │
-//                         │                 └── <REJECT> ──▶ none 🔁
-// none ──▶ <?APPROVAL?> ──┤
-//                         │
-//                         │                                                ┌──▶ deployed
-//                         │                                                │
-//                         └──▶ creation_initiated ──▶ creation_submitted ──┤
-//                                                                          │
-//                                                                          └──▶ deploy_failed
-// ```
+/* Flowchart:
+                                                                                                       ┌──▶ deployed
+                                                                                                       │
+                                          ┌── <COMMIT> ──▶ creation_initiated ──▶ creation_submitted ──┤
+                                          │                                                            │
+                                          │                                                            └──▶ deploy_failed
+                        ┌──▶ none (via) ──┤
+                        │                 │
+                        │                 │
+                        │                 └── <REJECT> ──▶ none 🔁
+none ──▶ <?APPROVAL?> ──┤
+                        │
+                        │                                                ┌──▶ deployed
+                        │                                                │
+                        └──▶ creation_initiated ──▶ creation_submitted ──┤
+                                                                         │
+                                                                         └──▶ deploy_failed
+*/
 
 // Phase 阶段枚举
 type Phase string

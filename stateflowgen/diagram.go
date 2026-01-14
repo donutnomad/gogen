@@ -579,7 +579,7 @@ func genSpace(s string) string {
 	for _, r := range s {
 		w := runewidth.RuneWidth(r)
 		if w == 2 {
-			sb.WriteString("　")
+			sb.WriteString(" ")
 		} else {
 			sb.WriteString(strings.Repeat(" ", w))
 		}

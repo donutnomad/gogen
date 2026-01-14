@@ -5,14 +5,13 @@ import "errors"
 
 // ================ stateflow ================
 
-// 流程图：
-// ```
-//           ┌──▶ approved ──▶ done
-//           │
-// pending ──┤
-//           │
-//           └──▶ rejected ──▶ pending 🔁
-// ```
+/* Flowchart:
+          ┌──▶ approved ──▶ done
+          │
+pending ──┤
+          │
+          └──▶ rejected ──▶ pending 🔁
+*/
 
 // Phase 阶段枚举
 type Phase string
