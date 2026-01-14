@@ -6,9 +6,9 @@ import (
 	"go/token"
 	"regexp"
 	"strings"
-	"unicode"
 
 	"github.com/donutnomad/gogen/internal/structparse"
+	"github.com/donutnomad/gogen/internal/utils"
 )
 
 // GormFieldInfo GORM字段信息
@@ -44,7 +44,7 @@ func ExtractColumnNameWithPrefix(fieldName, fieldTag, embeddedPrefix string) str
 	var columnName string
 
 	if fieldTag == "" {
-		columnName = ToSnakeCase(fieldName)
+		columnName = toSnakeCase(fieldName)
 	} else {
 		// 解析GORM标签
 		gormTags := parseGormTag(fieldTag)
@@ -52,7 +52,7 @@ func ExtractColumnNameWithPrefix(fieldName, fieldTag, embeddedPrefix string) str
 			columnName = col
 		} else {
 			// 没有找到column标签,使用默认规则
-			columnName = ToSnakeCase(fieldName)
+			columnName = toSnakeCase(fieldName)
 		}
 	}
 
@@ -99,46 +99,8 @@ func ParseGormModel(structInfo *structparse.StructInfo) (*GormModelInfo, error) 
 	return gormModel, nil
 }
 
-// ToSnakeCase 将驼峰命名转换为蛇形命名,正确处理连续大写字母(缩写词)
-func ToSnakeCase(str string) string {
-	var result strings.Builder
-	runes := []rune(str)
-
-	for i := 0; i < len(runes); i++ {
-		r := runes[i]
-
-		// 在大写字母前添加下划线,但需要考虑连续大写字母的情况
-		if i > 0 && unicode.IsUpper(r) {
-			// 检查是否为连续大写字母的结尾(后面跟小写字母)
-			// 例如:HTTPServer 中的 P (后面是S大写,不加_) 和 S (后面是e小写,需要加_)
-			if i+1 < len(runes) && unicode.IsLower(runes[i+1]) {
-				// 当前大写字母后面是小写字母,需要添加下划线
-				// 但要检查这是否是连续大写字母的最后一个
-				if i > 1 && unicode.IsUpper(runes[i-1]) {
-					// 前面也是大写字母,说明这是连续大写字母的最后一个
-					// 例如:HTTPServer 中的S,前面是P(大写),后面是e(小写)
-					result.WriteRune('_')
-				} else {
-					// 前面不是大写字母,这是一个单独的大写字母
-					// 例如:DefaultID 中的I,前面是t(小写),后面是D(大写)
-					result.WriteRune('_')
-				}
-			} else {
-				// 当前大写字母后面还是大写字母,或者是最后一个字符
-				// 检查前一个字符是否为小写字母
-				if i > 0 && unicode.IsLower(runes[i-1]) {
-					// 前面是小写字母,这是新的大写字母序列的开始
-					// 例如:DefaultID 中的I,前面是t(小写)
-					result.WriteRune('_')
-				}
-				// 如果前面也是大写字母,则不添加下划线(连续大写字母)
-			}
-		}
-
-		result.WriteRune(unicode.ToLower(r))
-	}
-
-	return result.String()
+func toSnakeCase(name string) string {
+	return utils.ToSnakeCase(name)
 }
 
 // parseGormTag 解析GORM标签
@@ -155,8 +117,7 @@ func parseGormTag(tag string) map[string]string {
 	gormTag := matches[1]
 
 	// 解析标签内的各个部分
-	parts := strings.Split(gormTag, ";")
-	for _, part := range parts {
+	for part := range strings.SplitSeq(gormTag, ";") {
 		part = strings.TrimSpace(part)
 		if strings.Contains(part, ":") {
 			kv := strings.SplitN(part, ":", 2)
@@ -182,7 +143,7 @@ func InferTableName(filename, structName string) (string, error) {
 	}
 
 	// 如果没有TableName方法,使用默认规则: 结构体名的复数形式 + 蛇形命名
-	return ToSnakeCase(structName) + "s", nil
+	return toSnakeCase(structName) + "s", nil
 }
 
 // ExtractTableNameFromMethod 从 TableName() 方法中提取表名

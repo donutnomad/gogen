@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/donutnomad/gogen/internal/gormparse"
+	"github.com/donutnomad/gogen/internal/utils"
 )
 
 // isExported 检查字段名是否为导出字段
@@ -19,7 +19,7 @@ func isExported(name string) bool {
 
 // toSnakeCase 驼峰转蛇形（使用 gormparse 的实现，正确处理 ID 等缩写）
 func toSnakeCase(s string) string {
-	return gormparse.ToSnakeCase(s)
+	return utils.ToSnakeCase(s)
 }
 
 // GoFileIterator 遍历 Go 文件的迭代器
