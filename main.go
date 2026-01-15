@@ -10,6 +10,7 @@ import (
 	"github.com/donutnomad/gogen/codegen"
 	"github.com/donutnomad/gogen/gormgen"
 	"github.com/donutnomad/gogen/mockgen"
+	"github.com/donutnomad/gogen/pickgen"
 	"github.com/donutnomad/gogen/plugin"
 	"github.com/donutnomad/gogen/settergen"
 	"github.com/donutnomad/gogen/slicegen"
@@ -29,6 +30,8 @@ func init() {
 	plugin.MustRegister(codegen.NewCodeGenerator())
 	plugin.MustRegister(stateflowgen.NewStateFlowGenerator())
 	plugin.MustRegister(templategen.NewTemplateGenerator())
+	plugin.MustRegister(pickgen.NewPickGenerator())
+	plugin.MustRegister(pickgen.NewOmitGenerator())
 }
 
 var (

@@ -37,6 +37,7 @@ func TestToSnakeCase(t *testing.T) {
 		"CPUUsage":                  "cpu_usage",
 		"RAMSize":                   "ram_size",
 		"HappyBodyIDs":              "happy_body_ids",
+		"HappyBodyIds":              "happy_body_ids",
 	}
 
 	for input, expected := range tests {

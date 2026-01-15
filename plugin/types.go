@@ -18,6 +18,7 @@ const (
 	TargetMethod                          // 结构体方法
 	TargetVar                             // 变量声明
 	TargetConst                           // 常量声明
+	TargetComment                         // 独立注释 (//go:gen:)
 )
 
 func (k TargetKind) String() string {
@@ -34,6 +35,8 @@ func (k TargetKind) String() string {
 		return "var"
 	case TargetConst:
 		return "const"
+	case TargetComment:
+		return "comment"
 	default:
 		return "unknown"
 	}
@@ -85,6 +88,7 @@ type ScanResult struct {
 	Methods    []*AnnotatedTarget // 带注解的方法
 	Vars       []*AnnotatedTarget // 带注解的变量
 	Consts     []*AnnotatedTarget // 带注解的常量
+	Comments   []*AnnotatedTarget // 独立注释 (//go:gen:)
 
 	// PackageConfigs 包级配置
 	// key: 包目录路径（绝对路径）
@@ -93,13 +97,14 @@ type ScanResult struct {
 
 // All 返回所有带注解的目标
 func (r *ScanResult) All() []*AnnotatedTarget {
-	result := make([]*AnnotatedTarget, 0, len(r.Structs)+len(r.Interfaces)+len(r.Funcs)+len(r.Methods)+len(r.Vars)+len(r.Consts))
+	result := make([]*AnnotatedTarget, 0, len(r.Structs)+len(r.Interfaces)+len(r.Funcs)+len(r.Methods)+len(r.Vars)+len(r.Consts)+len(r.Comments))
 	result = append(result, r.Structs...)
 	result = append(result, r.Interfaces...)
 	result = append(result, r.Funcs...)
 	result = append(result, r.Methods...)
 	result = append(result, r.Vars...)
 	result = append(result, r.Consts...)
+	result = append(result, r.Comments...)
 	return result
 }
 

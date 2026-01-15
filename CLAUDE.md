@@ -144,3 +144,5 @@ LSP goToDefinition /path/to/file.go:line:character
 - `line` 和 `character` 参数均为 1-based（从 1 开始计数）
 - 使用前需确保光标位置在有效的标识符上
 - 对于方法调用分析，优先使用 `incomingCalls` 和 `outgoingCalls`
+
+- 禁止向/tmp中写入代码进行执行和测试

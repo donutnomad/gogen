@@ -178,6 +178,11 @@ func (s *Scanner) QuickMatchFile(filePath string) (bool, error) {
 			return true, nil
 		}
 
+		// 检查 go:gen: 注解（支持 //go:gen: 和 // go:gen:）
+		if strings.Contains(trimmed, "go:gen:") {
+			return true, nil
+		}
+
 		// 查找 @xxx 模式
 		matches := quickMatchRegex.FindAllStringSubmatch(line, -1)
 		for _, match := range matches {
@@ -209,6 +214,7 @@ func (s *Scanner) parseFiles(ctx context.Context, files []string) (*ScanResult, 
 		methods    []*AnnotatedTarget
 		vars       []*AnnotatedTarget
 		consts     []*AnnotatedTarget
+		comments   []*AnnotatedTarget
 		pkgConfig  *PackageConfig
 		err        error
 	}
@@ -238,6 +244,7 @@ func (s *Scanner) parseFiles(ctx context.Context, files []string) (*ScanResult, 
 						methods:    r.methods,
 						vars:       r.vars,
 						consts:     r.consts,
+						comments:   r.comments,
 						pkgConfig:  r.pkgConfig,
 						err:        r.err,
 					}
@@ -278,6 +285,7 @@ func (s *Scanner) parseFiles(ctx context.Context, files []string) (*ScanResult, 
 		result.Methods = append(result.Methods, r.methods...)
 		result.Vars = append(result.Vars, r.vars...)
 		result.Consts = append(result.Consts, r.consts...)
+		result.Comments = append(result.Comments, r.comments...)
 		if r.pkgConfig != nil {
 			pkgDir := r.pkgConfig.PackageDir
 			// 如果该包已有配置，检查是否冲突
@@ -312,6 +320,7 @@ func (s *Scanner) parseFile(filePath string) (result struct {
 	methods    []*AnnotatedTarget
 	vars       []*AnnotatedTarget
 	consts     []*AnnotatedTarget
+	comments   []*AnnotatedTarget
 	pkgConfig  *PackageConfig
 	err        error
 }) {
@@ -326,6 +335,9 @@ func (s *Scanner) parseFile(filePath string) (result struct {
 
 	// 解析包级 go:gogen: 配置
 	result.pkgConfig = s.parsePackageConfig(file, filePath)
+
+	// 解析 go:gen: 独立注解
+	result.comments = s.parseGoGenComments(fset, file, filePath, packageName)
 
 	for _, decl := range file.Decls {
 		switch d := decl.(type) {
@@ -353,6 +365,7 @@ func (s *Scanner) parseTypeDecl(fset *token.FileSet, filePath, packageName strin
 	methods    []*AnnotatedTarget
 	vars       []*AnnotatedTarget
 	consts     []*AnnotatedTarget
+	comments   []*AnnotatedTarget
 	pkgConfig  *PackageConfig
 	err        error
 }) {
@@ -444,6 +457,7 @@ func (s *Scanner) parseFuncDecl(fset *token.FileSet, filePath, packageName strin
 	methods    []*AnnotatedTarget
 	vars       []*AnnotatedTarget
 	consts     []*AnnotatedTarget
+	comments   []*AnnotatedTarget
 	pkgConfig  *PackageConfig
 	err        error
 }) {
@@ -589,6 +603,11 @@ func ScanWithFilter(ctx context.Context, annotations []string, patterns ...strin
 // 支持两种格式：//go:gogen: 和 // go:gogen:
 var goGenRegex = regexp.MustCompile(`go:gogen:\s*(.*)`)
 
+// goGenAnnotationRegex 匹配 go:gen: 注解指令
+// 支持两种格式：//go:gen: 和 // go:gen:
+// 与 go:gogen: 不同，go:gen: 用于独立注解而非包级配置
+var goGenAnnotationRegex = regexp.MustCompile(`go:gen:\s*(.*)`)
+
 // parsePackageConfig 解析包级 go:gogen: 配置
 // 支持格式:
 //
@@ -628,6 +647,56 @@ func (s *Scanner) parsePackageConfig(file *ast.File, filePath string) *PackageCo
 // Deprecated: 请使用 parsePackageConfig
 func (s *Scanner) parseFileConfig(file *ast.File, filePath string) *PackageConfig {
 	return s.parsePackageConfig(file, filePath)
+}
+
+// parseGoGenComments 解析 go:gen: 独立注解
+// 格式: //go:gen: @Pick(name=xxx, source=`pkg/path.Type`, fields=`[a,b,c]`)
+// 用于引用第三方包的类型
+func (s *Scanner) parseGoGenComments(fset *token.FileSet, file *ast.File, filePath, packageName string) []*AnnotatedTarget {
+	var targets []*AnnotatedTarget
+
+	for _, cg := range file.Comments {
+		for _, c := range cg.List {
+			text := strings.TrimPrefix(c.Text, "//")
+			text = strings.TrimPrefix(text, "/*")
+			text = strings.TrimSuffix(text, "*/")
+			text = strings.TrimSpace(text)
+
+			if matches := goGenAnnotationRegex.FindStringSubmatch(text); len(matches) > 1 {
+				// 解析注解内容
+				annotationText := matches[1]
+				annotations := ParseAnnotations(annotationText)
+
+				// 应用过滤器
+				if len(s.annotationFilter) > 0 && len(annotations) > 0 {
+					annotations = FilterByNames(annotations, s.annotationFilter...)
+				}
+
+				if len(annotations) == 0 {
+					continue
+				}
+
+				// 为每个注解创建独立的 AnnotatedTarget
+				for _, ann := range annotations {
+					target := &Target{
+						Kind:        TargetComment,
+						Name:        ann.Name, // 使用注解名称作为目标名称
+						PackageName: packageName,
+						FilePath:    filePath,
+						Position:    c.Pos(),
+						Node:        nil, // 独立注释没有关联的 AST 节点
+					}
+
+					targets = append(targets, &AnnotatedTarget{
+						Target:      target,
+						Annotations: []*Annotation{ann},
+					})
+				}
+			}
+		}
+	}
+
+	return targets
 }
 
 // parseGogenLine 解析单行 go:gogen: 配置
@@ -732,6 +801,7 @@ func (s *Scanner) parseVarConstDecl(fset *token.FileSet, filePath, packageName s
 	methods    []*AnnotatedTarget
 	vars       []*AnnotatedTarget
 	consts     []*AnnotatedTarget
+	comments   []*AnnotatedTarget
 	pkgConfig  *PackageConfig
 	err        error
 }) {
