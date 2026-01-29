@@ -37,6 +37,15 @@ func MapFieldTypeInfo(field gormparse.GormFieldInfo) FieldTypeInfo {
 		}
 	}
 
+	// decimal SQL 类型 -> DecimalField
+	if sqlType == "decimal" {
+		return FieldTypeInfo{
+			FieldType:     fmt.Sprintf("gsql.DecimalField[%s]", originalType),
+			Constructor:   fmt.Sprintf("gsql.DecimalFieldOf[%s]", originalType),
+			FieldCategory: "decimal",
+		}
+	}
+
 	// time.Time 类型根据 SQLType 细分
 	if isTimeType(typeForCheck) {
 		switch sqlType {

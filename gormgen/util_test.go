@@ -81,6 +81,28 @@ func TestMapFieldTypeInfo(t *testing.T) {
 			expectedConstr:    "gsql.FloatFieldOf[sql.NullFloat64]",
 			expectedCategory:  "float",
 		},
+		// decimal 类型（基于 SQL type:decimal 映射到 DecimalField）
+		{
+			name:              "float64+decimal_SQL类型",
+			field:             gormparse.GormFieldInfo{Type: "float64", SQLType: "decimal"},
+			expectedFieldType: "gsql.DecimalField[float64]",
+			expectedConstr:    "gsql.DecimalFieldOf[float64]",
+			expectedCategory:  "decimal",
+		},
+		{
+			name:              "string+decimal_SQL类型",
+			field:             gormparse.GormFieldInfo{Type: "string", SQLType: "decimal"},
+			expectedFieldType: "gsql.DecimalField[string]",
+			expectedConstr:    "gsql.DecimalFieldOf[string]",
+			expectedCategory:  "decimal",
+		},
+		{
+			name:              "decimal.Decimal第三方库",
+			field:             gormparse.GormFieldInfo{Type: "decimal.Decimal", SQLType: "decimal"},
+			expectedFieldType: "gsql.DecimalField[decimal.Decimal]",
+			expectedConstr:    "gsql.DecimalFieldOf[decimal.Decimal]",
+			expectedCategory:  "decimal",
+		},
 		// 字符串类型
 		{
 			name:              "string类型",
