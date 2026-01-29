@@ -4,7 +4,6 @@ package json_types
 import (
 	"github.com/donutnomad/gsql"
 	"github.com/donutnomad/gsql/field"
-	"gorm.io/datatypes"
 )
 
 // ================ gormgen ================
@@ -12,7 +11,7 @@ import (
 type ArticleSchemaType struct {
 	ID         gsql.IntField[uint64]
 	Title      gsql.StringField[string]
-	RawContent gsql.ScalarField[datatypes.JSON]
+	RawContent gsql.JsonField[string]
 	fieldType  Article
 	alias      string
 	tableName  string
@@ -67,15 +66,15 @@ var ArticleSchema = ArticleSchemaType{
 	tableName:  "articles",
 	ID:         gsql.IntFieldOf[uint64]("articles", "id", field.FlagPrimaryKey),
 	Title:      gsql.StringFieldOf[string]("articles", "title"),
-	RawContent: gsql.ScalarFieldOf[datatypes.JSON]("articles", "raw_content"),
+	RawContent: gsql.JsonFieldOf[string]("articles", "raw_content"),
 	fieldType:  Article{},
 }
 
 type ProductSchemaType struct {
 	ID        gsql.IntField[uint64]
 	Name      gsql.StringField[string]
-	Tags      gsql.ScalarField[datatypes.JSONSlice[string]]
-	Images    gsql.ScalarField[datatypes.JSONSlice[string]]
+	Tags      gsql.JsonField[string]
+	Images    gsql.JsonField[string]
 	fieldType Product
 	alias     string
 	tableName string
@@ -132,16 +131,16 @@ var ProductSchema = ProductSchemaType{
 	tableName: "products",
 	ID:        gsql.IntFieldOf[uint64]("products", "id", field.FlagPrimaryKey),
 	Name:      gsql.StringFieldOf[string]("products", "name"),
-	Tags:      gsql.ScalarFieldOf[datatypes.JSONSlice[string]]("products", "tags"),
-	Images:    gsql.ScalarFieldOf[datatypes.JSONSlice[string]]("products", "images"),
+	Tags:      gsql.JsonFieldOf[string]("products", "tags"),
+	Images:    gsql.JsonFieldOf[string]("products", "images"),
 	fieldType: Product{},
 }
 
 type UserSchemaType struct {
 	ID        gsql.IntField[uint64]
 	Name      gsql.StringField[string]
-	Settings  gsql.ScalarField[datatypes.JSONType[Settings]]
-	Metadata  gsql.ScalarField[datatypes.JSONType[Metadata]]
+	Settings  gsql.JsonField[string]
+	Metadata  gsql.JsonField[string]
 	fieldType User
 	alias     string
 	tableName string
@@ -198,7 +197,7 @@ var UserSchema = UserSchemaType{
 	tableName: "users",
 	ID:        gsql.IntFieldOf[uint64]("users", "id", field.FlagPrimaryKey),
 	Name:      gsql.StringFieldOf[string]("users", "name"),
-	Settings:  gsql.ScalarFieldOf[datatypes.JSONType[Settings]]("users", "settings"),
-	Metadata:  gsql.ScalarFieldOf[datatypes.JSONType[Metadata]]("users", "metadata"),
+	Settings:  gsql.JsonFieldOf[string]("users", "settings"),
+	Metadata:  gsql.JsonFieldOf[string]("users", "metadata"),
 	fieldType: User{},
 }

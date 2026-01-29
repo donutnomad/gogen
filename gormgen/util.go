@@ -27,12 +27,12 @@ func MapFieldTypeInfo(field gormparse.GormFieldInfo) FieldTypeInfo {
 	// 移除指针标记用于判断类型
 	typeForCheck := strings.TrimPrefix(goType, "*")
 
-	// JSON 类型 -> ScalarField[T]（通过 GormDataType 判断）
-	// gsql 包没有专门的 JsonField，使用 ScalarField 存储 JSON 类型
+	// JSON 类型 -> JsonField[string]（通过 GormDataType 判断）
+	// JSON 类型统一使用 string 作为泛型参数
 	if gormDataType == "json" {
 		return FieldTypeInfo{
-			FieldType:     fmt.Sprintf("gsql.ScalarField[%s]", originalType),
-			Constructor:   fmt.Sprintf("gsql.ScalarFieldOf[%s]", originalType),
+			FieldType:     "gsql.JsonField[string]",
+			Constructor:   "gsql.JsonFieldOf[string]",
 			FieldCategory: "json",
 		}
 	}

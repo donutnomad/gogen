@@ -175,19 +175,19 @@ func TestMapFieldTypeInfo(t *testing.T) {
 			expectedConstr:    "gsql.DateTimeFieldOf[time.Time]",
 			expectedCategory:  "datetime",
 		},
-		// JSON类型
+		// JSON类型 -> JsonField[string]
 		{
-			name:              "JSON类型映射到ScalarField",
+			name:              "JSON类型映射到JsonField",
 			field:             gormparse.GormFieldInfo{Type: "MyJsonType", GormDataType: "json"},
-			expectedFieldType: "gsql.ScalarField[MyJsonType]",
-			expectedConstr:    "gsql.ScalarFieldOf[MyJsonType]",
+			expectedFieldType: "gsql.JsonField[string]",
+			expectedConstr:    "gsql.JsonFieldOf[string]",
 			expectedCategory:  "json",
 		},
 		{
-			name:              "指针JSON类型映射到ScalarField",
+			name:              "指针JSON类型映射到JsonField",
 			field:             gormparse.GormFieldInfo{Type: "*JsonData", GormDataType: "json"},
-			expectedFieldType: "gsql.ScalarField[*JsonData]",
-			expectedConstr:    "gsql.ScalarFieldOf[*JsonData]",
+			expectedFieldType: "gsql.JsonField[string]",
+			expectedConstr:    "gsql.JsonFieldOf[string]",
 			expectedCategory:  "json",
 		},
 		// 未知类型

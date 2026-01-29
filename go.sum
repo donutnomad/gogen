@@ -62,6 +62,8 @@ github.com/donutnomad/gg v0.0.0-20260110043427-f34493c8cfac h1:NC/7o24o4diPGRtql
 github.com/donutnomad/gg v0.0.0-20260110043427-f34493c8cfac/go.mod h1:La6rTjV7nBUvxx/Ml1iF+7/Q9okPwlUc0pOdkgUGv+k=
 github.com/donutnomad/gsql v0.2.0 h1:WSj3i7l31kZ/RDDkkakH/tWEeJrhpp+eXIOQII6g1y8=
 github.com/donutnomad/gsql v0.2.0/go.mod h1:ns82EJee4efEs01HLJLvyRH9/X2dRAy3U/YU0AOzeMI=
+github.com/donutnomad/gsql v0.2.3 h1:dKkHQBipRssqxH0RGzJDlq7TYGK0uuayskyWUBUR6dg=
+github.com/donutnomad/gsql v0.2.3/go.mod h1:ns82EJee4efEs01HLJLvyRH9/X2dRAy3U/YU0AOzeMI=
 github.com/donutnomad/solana-web3 v0.0.0-20250313072913-99732fd085a1 h1:VZpfIVPczawQQBak3CZs+hMRaH+pc6T/6dWe2wlw81U=
 github.com/donutnomad/solana-web3 v0.0.0-20250313072913-99732fd085a1/go.mod h1:xiLdph2USiAq2zV4a8HiADyZWbzhccz3MTdDVFdHVdI=
 github.com/donutnomad/xchain v0.0.0-20260104030312-0248f6195579 h1:qfnuFjcl7OLzupD+WjvAQFhMUJEkpDPlG/9ZUb+7Rww=

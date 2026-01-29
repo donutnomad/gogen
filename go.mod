@@ -8,7 +8,7 @@ require (
 	github.com/dave/jennifer v1.7.1
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/donutnomad/gg v0.0.0-20260110043427-f34493c8cfac
-	github.com/donutnomad/gsql v0.2.0
+	github.com/donutnomad/gsql v0.2.3
 	github.com/donutnomad/xchain v0.0.0-20260104030312-0248f6195579
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/gin-gonic/gin v1.11.0
