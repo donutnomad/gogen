@@ -966,3 +966,28 @@ func TestGenerate2MultiSig(t *testing.T) {
 
 	t.Logf("Generated function code:\n%s", funcCode)
 }
+
+// TestGenerate2ReceiverNameConflict 测试接收器名字以 B 开头时不与局部变量 b 冲突
+func TestGenerate2ReceiverNameConflict(t *testing.T) {
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "BusinessPO", "ToPO", "ToPatch")
+	if err != nil {
+		t.Fatalf("Generate2 failed: %v", err)
+	}
+
+	// 验证接收器名字不是 b（应该是 r）
+	if strings.Contains(funcCode, "func (b *BusinessPO)") {
+		t.Errorf("Receiver should not be 'b' to avoid conflict with local variable 'b'")
+	}
+
+	// 验证接收器名字是 r
+	if !strings.Contains(funcCode, "func (r *BusinessPO) ToPatch(input *BusinessDomain) map[string]any") {
+		t.Errorf("Expected receiver name to be 'r', got:\n%s", funcCode)
+	}
+
+	// 验证调用 ToPO 使用正确的接收器名
+	if !strings.Contains(funcCode, "b := r.ToPO(input)") {
+		t.Errorf("Expected 'b := r.ToPO(input)', got:\n%s", funcCode)
+	}
+
+	t.Logf("Generated full code:\n%s", fullCode)
+}

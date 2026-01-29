@@ -28,6 +28,11 @@ func NewGenerator2(result *ParseResult2, genFuncName string) *Generator2 {
 		receiverVar = strings.ToLower(result.ReceiverType[:1])
 	}
 
+	// 避免与生成的局部变量 "b" 冲突
+	if receiverVar == "b" {
+		receiverVar = "r"
+	}
+
 	g := &Generator2{
 		result:        result,
 		genFuncName:   genFuncName,

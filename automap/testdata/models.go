@@ -1200,3 +1200,31 @@ func (p *MultiSigPO) ToPO(entity *MultiSigDomain) *MultiSigPO {
 		NewThreshold:  entity.Content.NewThreshold,
 	}
 }
+
+// ============================================================================
+// 测试场景: 接收器名字以 B 开头（测试变量名冲突问题）
+// 当接收器名默认为 b 时，会与生成的局部变量 b 冲突
+// ============================================================================
+
+// BusinessDomain 业务领域模型
+type BusinessDomain struct {
+	ID   uint64
+	Name string
+}
+
+// BusinessPO 业务持久化模型
+type BusinessPO struct {
+	ID   uint64 `gorm:"column:id;primaryKey"`
+	Name string `gorm:"column:name"`
+}
+
+// ToPO 映射方法
+func (b *BusinessPO) ToPO(d *BusinessDomain) *BusinessPO {
+	if d == nil {
+		return nil
+	}
+	return &BusinessPO{
+		ID:   d.ID,
+		Name: d.Name,
+	}
+}

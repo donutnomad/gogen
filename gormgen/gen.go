@@ -37,11 +37,8 @@ func generateModelCode(gen *gg.Generator, model *gormparse.GormModelInfo, gsqlPk
 	{
 		s := group.NewStruct(structName)
 		for _, f := range model.Fields {
-			fieldType := mapFieldType(f.Type)
-			if fieldType == "" {
-				continue
-			}
-			s.AddField(f.Name, fieldType)
+			typeInfo := MapFieldTypeInfo(f)
+			s.AddField(f.Name, typeInfo.FieldType)
 		}
 		s.AddField("fieldType", rawModelName)
 		s.AddField("alias", "string")
@@ -72,18 +69,14 @@ func generateModelCode(gen *gg.Generator, model *gormparse.GormModelInfo, gsqlPk
 
 	// ====== Method: WithTable
 	{
-		// 构建 tn := gsqlPkg.TableName(tableName)
+		// 构建 tn := gsqlPkg.TN(tableName)
 		tnDecl := gg.NewInlineGroup().Append(
 			gg.S("tn := "),
-			gsqlPkg.Call("TableName", "tableName"),
+			gsqlPkg.Call("TN", "tableName"),
 		)
 
 		body := []any{tnDecl}
 		for _, f := range model.Fields {
-			fieldType := mapFieldType(f.Type)
-			if fieldType == "" {
-				continue
-			}
 			body = append(body,
 				gg.S("t.%s = t.%s.WithTable(&tn)", f.Name, f.Name),
 			)
@@ -137,10 +130,6 @@ func generateModelCode(gen *gg.Generator, model *gormparse.GormModelInfo, gsqlPk
 		// 收集所有字段作为切片元素
 		var fieldElements []any
 		for _, f := range model.Fields {
-			fieldType := mapFieldType(f.Type)
-			if fieldType == "" {
-				continue
-			}
 			fieldElements = append(fieldElements, gg.S("t.%s", f.Name))
 		}
 
@@ -175,13 +164,9 @@ func generateModelCode(gen *gg.Generator, model *gormparse.GormModelInfo, gsqlPk
 		anyStruct := gg.Value(structName).
 			AddField("tableName", gg.Lit(model.TableName)).MultiLine()
 		for _, f := range model.Fields {
-			fieldType := mapFieldType(f.Type)
-			if fieldType == "" {
-				continue
-			}
-			constructor := getFieldConstructor(fieldType)
+			typeInfo := MapFieldTypeInfo(f)
 			flags := getFieldFlags(f.Tag)
-			call := gg.Call(constructor).
+			call := gg.Call(typeInfo.Constructor).
 				AddParameter(gg.Lit(model.TableName), gg.Lit(f.ColumnName))
 			if flags != "" {
 				call.AddParameter(gg.S(flags))
