@@ -991,3 +991,84 @@ func TestGenerate2ReceiverNameConflict(t *testing.T) {
 
 	t.Logf("Generated full code:\n%s", fullCode)
 }
+
+// TestGenerate2StructLiteral 测试结构体字面量映射
+// 目标字段是嵌入结构体，通过结构体字面量从多个源字段组合
+// Person: PersonColumns{Name: d.Person.Name, Age: d.Person.Age}
+// 所有源字段来自同一个父字段 Person，应该识别为 EmbeddedOneToMany
+func TestGenerate2StructLiteral(t *testing.T) {
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "StructLiteralPO", "ToPO", "ToPatch")
+	if err != nil {
+		t.Fatalf("Generate2 failed: %v", err)
+	}
+
+	// 验证是 EmbeddedOneToMany 类型（不是 Embedded）
+	if !strings.Contains(funcCode, "// EmbeddedOneToMany: Person -> Person") {
+		t.Errorf("Expected EmbeddedOneToMany mapping type, got:\n%s", funcCode)
+	}
+
+	// 验证只检查父字段 Person.IsPresent()，不是子字段
+	if !strings.Contains(funcCode, "if fields.Person.IsPresent()") {
+		t.Errorf("Expected fields.Person.IsPresent() check, got:\n%s", funcCode)
+	}
+
+	// 验证不应该出现子字段的 IsPresent 检查
+	if strings.Contains(funcCode, "fields.Person.Name.IsPresent()") {
+		t.Errorf("Should NOT check fields.Person.Name.IsPresent() separately")
+	}
+	if strings.Contains(funcCode, "fields.Person.Age.IsPresent()") {
+		t.Errorf("Should NOT check fields.Person.Age.IsPresent() separately")
+	}
+
+	// 验证列赋值
+	expectedMappings := []string{
+		`values["person_name"] = b.Person.Name`,
+		`values["person_age"] = b.Person.Age`,
+	}
+	for _, expected := range expectedMappings {
+		if !strings.Contains(funcCode, expected) {
+			t.Errorf("Missing expected mapping: %s", expected)
+		}
+	}
+
+	t.Logf("Generated full code:\n%s", fullCode)
+}
+
+// TestGenerate2StructLiteralMixedSource 测试结构体字面量映射（源字段来自不同父字段）
+// Person: PersonColumns{Name: d.Title, Age: d.Score}
+// 源字段没有共同父字段，应该识别为 Embedded（每个字段单独检查 IsPresent）
+func TestGenerate2StructLiteralMixedSource(t *testing.T) {
+	fullCode, funcCode, _, err := automap.Generate2("testdata/models.go", "MixedSourcePO", "ToPO", "ToPatch")
+	if err != nil {
+		t.Fatalf("Generate2 failed: %v", err)
+	}
+
+	// 验证是 Embedded 类型（不是 EmbeddedOneToMany）
+	if !strings.Contains(funcCode, "// Embedded: Person") {
+		t.Errorf("Expected Embedded mapping type, got:\n%s", funcCode)
+	}
+	if strings.Contains(funcCode, "// EmbeddedOneToMany:") {
+		t.Errorf("Should NOT be EmbeddedOneToMany when sources come from different parents")
+	}
+
+	// 验证每个子字段单独检查 IsPresent
+	if !strings.Contains(funcCode, "fields.Title.IsPresent()") {
+		t.Errorf("Expected fields.Title.IsPresent() check")
+	}
+	if !strings.Contains(funcCode, "fields.Score.IsPresent()") {
+		t.Errorf("Expected fields.Score.IsPresent() check")
+	}
+
+	// 验证列赋值
+	mixedExpected := []string{
+		`values["person_name"] = b.Person.Name`,
+		`values["person_age"] = b.Person.Age`,
+	}
+	for _, expected := range mixedExpected {
+		if !strings.Contains(funcCode, expected) {
+			t.Errorf("Missing expected mapping: %s", expected)
+		}
+	}
+
+	t.Logf("Generated full code:\n%s", fullCode)
+}

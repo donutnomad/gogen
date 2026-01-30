@@ -16,11 +16,8 @@ func (m *Mapper) analyzeEmbeddedCompositeLit(fieldName string, compLit *ast.Comp
 	embeddedTypeSpec := m.typeSpecs[embeddedTypeName]
 	embeddedStructType, _ := m.getStructType(embeddedTypeSpec)
 
-	group := MappingGroup{
-		Type:        Embedded,
-		TargetField: fieldName,
-	}
-
+	// 先收集所有映射，分析源路径
+	var mappings []FieldMapping2
 	for _, elt := range compLit.Elts {
 		kv, ok := elt.(*ast.KeyValueExpr)
 		if !ok {
@@ -50,13 +47,65 @@ func (m *Mapper) analyzeEmbeddedCompositeLit(fieldName string, compLit *ast.Comp
 			ColumnName:  columnName,
 			ConvertExpr: convertExpr,
 		}
-		group.Mappings = append(group.Mappings, mapping)
+		mappings = append(mappings, mapping)
 	}
 
-	if len(group.Mappings) > 0 {
+	if len(mappings) == 0 {
+		return nil
+	}
+
+	// 检查所有源路径是否有共同的父字段
+	// 例如: Person.Name, Person.Age -> 共同父字段是 Person
+	commonParent := findCommonSourceParent(mappings)
+
+	if commonParent != "" {
+		// 所有源字段来自同一个父字段，使用 EmbeddedOneToMany
+		// 这样只需要检查 fields.Person.IsPresent()
+		group := MappingGroup{
+			Type:        EmbeddedOneToMany,
+			TargetField: fieldName,
+			SourceField: commonParent,
+		}
+		group.Mappings = mappings
+		m.result.Groups = append(m.result.Groups, group)
+	} else {
+		// 源字段来自不同父字段，使用 Embedded（每个字段单独检查）
+		group := MappingGroup{
+			Type:        Embedded,
+			TargetField: fieldName,
+		}
+		group.Mappings = mappings
 		m.result.Groups = append(m.result.Groups, group)
 	}
+
 	return nil
+}
+
+// findCommonSourceParent 查找所有映射的源路径的共同父字段
+// 如果所有源路径都以同一个字段开头（如 Person.Name, Person.Age），返回该父字段名
+// 否则返回空字符串
+func findCommonSourceParent(mappings []FieldMapping2) string {
+	if len(mappings) == 0 {
+		return ""
+	}
+
+	// 提取第一个映射的父字段
+	firstPath := mappings[0].SourcePath
+	dotIdx := strings.Index(firstPath, ".")
+	if dotIdx == -1 {
+		// 没有点号，不是嵌套路径
+		return ""
+	}
+	parent := firstPath[:dotIdx]
+
+	// 检查所有其他映射是否有相同的父字段
+	for _, mapping := range mappings[1:] {
+		if !strings.HasPrefix(mapping.SourcePath, parent+".") {
+			return ""
+		}
+	}
+
+	return parent
 }
 
 // analyzeEmbeddedOneToManyMapping 分析嵌入字段的一对多映射

@@ -1228,3 +1228,87 @@ func (b *BusinessPO) ToPO(d *BusinessDomain) *BusinessPO {
 		Name: d.Name,
 	}
 }
+
+// ============================================================================
+// 测试场景27: 结构体字面量映射（非 JSON）
+// 目标字段是普通嵌入结构体，通过结构体字面量从多个源字段组合
+// B: BType{Name: Input.E.Name, Age: Input.E.Age}
+// ============================================================================
+
+// PersonInfo 人员信息（用于嵌入 Domain）
+type PersonInfo struct {
+	Name string
+	Age  int
+}
+
+// PersonColumns 人员列（用于嵌入 PO）
+type PersonColumns struct {
+	Name string `gorm:"column:person_name"`
+	Age  int    `gorm:"column:person_age"`
+}
+
+// StructLiteralDomain 结构体字面量映射领域模型
+type StructLiteralDomain struct {
+	ID     uint64
+	Title  string
+	Person PersonInfo // 源：嵌套结构体
+}
+
+// StructLiteralPO 结构体字面量映射持久化模型
+type StructLiteralPO struct {
+	ID     uint64        `gorm:"column:id;primaryKey"`
+	Title  string        `gorm:"column:title"`
+	Person PersonColumns `gorm:"embedded"` // 目标：嵌入结构体
+}
+
+// ToPO 结构体字面量映射示例
+// Person: PersonColumns{Name: d.Person.Name, Age: d.Person.Age}
+// 从 Domain 的嵌套字段组合为 PO 的嵌入结构体
+func (p *StructLiteralPO) ToPO(d *StructLiteralDomain) *StructLiteralPO {
+	if d == nil {
+		return nil
+	}
+	return &StructLiteralPO{
+		ID:    d.ID,
+		Title: d.Title,
+		Person: PersonColumns{
+			Name: d.Person.Name,
+			Age:  d.Person.Age,
+		},
+	}
+}
+
+// ============================================================================
+// 测试场景28: 结构体字面量映射（源字段来自不同父字段）
+// 目标字段是嵌入结构体，但各子字段来自不同的源字段
+// Person: PersonColumns{Name: d.Title, Age: d.Score}
+// 应该识别为 Embedded（每个字段单独检查 IsPresent）
+// ============================================================================
+
+// MixedSourceDomain 混合源领域模型
+type MixedSourceDomain struct {
+	ID    uint64
+	Title string
+	Score int
+}
+
+// MixedSourcePO 混合源持久化模型
+type MixedSourcePO struct {
+	ID     uint64        `gorm:"column:id;primaryKey"`
+	Person PersonColumns `gorm:"embedded"` // 目标：嵌入结构体
+}
+
+// ToPO 结构体字面量映射示例（源字段来自不同父字段）
+// Person: PersonColumns{Name: d.Title, Age: d.Score}
+func (p *MixedSourcePO) ToPO(d *MixedSourceDomain) *MixedSourcePO {
+	if d == nil {
+		return nil
+	}
+	return &MixedSourcePO{
+		ID: d.ID,
+		Person: PersonColumns{
+			Name: d.Title,
+			Age:  d.Score,
+		},
+	}
+}
