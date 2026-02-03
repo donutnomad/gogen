@@ -100,18 +100,21 @@ func TestParseGormEmbeddedStruct(t *testing.T) {
 	}
 
 	// 验证UserWithAccount自身的字段
-	_, ok := fieldMap["ID"]
+	id, ok := fieldMap["ID"]
 	assert.True(t, ok, "应该有ID字段")
+	assert.Empty(t, id.SourceField, "ID是直接字段，SourceField应为空")
 
 	// 验证从Account展开的字段
 	accountName, ok := fieldMap["AccountName"]
 	assert.True(t, ok, "应该有从Account展开的AccountName字段")
 	assert.Equal(t, "string", accountName.Type, "AccountName类型应为string")
 	assert.Equal(t, "account_", accountName.EmbeddedPrefix, "应该有account_前缀")
+	assert.Equal(t, "Account", accountName.SourceField, "AccountName的SourceField应为Account")
 
 	balance, ok := fieldMap["Balance"]
 	assert.True(t, ok, "应该有从Account展开的Balance字段")
 	assert.Equal(t, "account_", balance.EmbeddedPrefix, "Balance应该有account_前缀")
+	assert.Equal(t, "Account", balance.SourceField, "Balance的SourceField应为Account")
 }
 
 // TestParseCrossPackageFields 测试跨包字段解析
@@ -295,4 +298,81 @@ func TestParseAliasedEmbeddedStruct(t *testing.T) {
 	assert.True(t, ok, "应该有从 StateColumns 展开的 Pending 字段")
 	assert.Equal(t, "string", pending.Type, "Pending 类型应为 string（基础类型无需包前缀）")
 	assert.Equal(t, "domain.StateColumns", pending.SourceType, "Pending 应标记来源为 domain.StateColumns")
+}
+
+// TestParseNestedEmbeddedStruct 测试多层嵌套的 gorm embedded 字段
+// 功能：验证多层嵌套时 SourceField 能正确累加路径
+// 场景：NestedEmbeddedPO -> Outer (OuterStruct) -> Inner (InnerStruct)
+func TestParseNestedEmbeddedStruct(t *testing.T) {
+	filename := filepath.Join("testdata", "embedded", "nested_embedded.go")
+	structName := "NestedEmbeddedPO"
+
+	info, err := ParseStruct(filename, structName)
+	require.NoError(t, err, "解析多层嵌套结构体失败")
+	require.NotNil(t, info, "结构体信息不应为空")
+
+	// 构建字段映射
+	fieldMap := make(map[string]FieldInfo)
+	for _, field := range info.Fields {
+		fieldMap[field.Name] = field
+	}
+
+	// 验证直接字段
+	id, ok := fieldMap["ID"]
+	assert.True(t, ok, "应该有 ID 字段")
+	assert.Empty(t, id.SourceField, "ID 是直接字段，SourceField 应为空")
+
+	name, ok := fieldMap["Name"]
+	assert.True(t, ok, "应该有 Name 字段")
+	assert.Empty(t, name.SourceField, "Name 是直接字段，SourceField 应为空")
+
+	// 验证一层嵌入字段 (Outer.OuterField)
+	outerField, ok := fieldMap["OuterField"]
+	assert.True(t, ok, "应该有从 OuterStruct 展开的 OuterField 字段")
+	assert.Equal(t, "Outer", outerField.SourceField, "OuterField 的 SourceField 应为 Outer")
+	assert.Equal(t, "outer_", outerField.EmbeddedPrefix, "OuterField 应有 outer_ 前缀")
+
+	// 验证多层嵌入字段 (Outer.Inner.InnerField1)
+	innerField1, ok := fieldMap["InnerField1"]
+	assert.True(t, ok, "应该有从 InnerStruct 展开的 InnerField1 字段")
+	assert.Equal(t, "Outer.Inner", innerField1.SourceField, "InnerField1 的 SourceField 应为 Outer.Inner")
+	assert.Equal(t, "outer_", innerField1.EmbeddedPrefix, "InnerField1 应有 outer_ 前缀")
+
+	innerField2, ok := fieldMap["InnerField2"]
+	assert.True(t, ok, "应该有从 InnerStruct 展开的 InnerField2 字段")
+	assert.Equal(t, "Outer.Inner", innerField2.SourceField, "InnerField2 的 SourceField 应为 Outer.Inner")
+}
+
+// TestParseMixedEmbeddedStruct 测试混合嵌入场景
+// 功能：验证匿名嵌入和 gorm embedded 混合使用时的正确处理
+// 场景：MixedEmbeddedPO 同时使用匿名嵌入 BaseModel 和 gorm embedded Account
+func TestParseMixedEmbeddedStruct(t *testing.T) {
+	filename := filepath.Join("testdata", "embedded", "nested_embedded.go")
+	structName := "MixedEmbeddedPO"
+
+	info, err := ParseStruct(filename, structName)
+	require.NoError(t, err, "解析混合嵌入结构体失败")
+	require.NotNil(t, info, "结构体信息不应为空")
+
+	// 构建字段映射
+	fieldMap := make(map[string]FieldInfo)
+	for _, field := range info.Fields {
+		fieldMap[field.Name] = field
+	}
+
+	// 验证匿名嵌入的字段 (BaseModel) - SourceField 应为空，因为可以直接访问
+	id, ok := fieldMap["ID"]
+	assert.True(t, ok, "应该有从 BaseModel 展开的 ID 字段")
+	assert.Empty(t, id.SourceField, "匿名嵌入的字段 SourceField 应为空")
+	assert.Equal(t, "BaseModel", id.SourceType, "ID 的 SourceType 应为 BaseModel")
+
+	createdAt, ok := fieldMap["CreatedAt"]
+	assert.True(t, ok, "应该有从 BaseModel 展开的 CreatedAt 字段")
+	assert.Empty(t, createdAt.SourceField, "匿名嵌入的字段 SourceField 应为空")
+
+	// 验证 gorm embedded 字段 (Account) - SourceField 应为 "Account"
+	innerField1, ok := fieldMap["InnerField1"]
+	assert.True(t, ok, "应该有从 Account 展开的 InnerField1 字段")
+	assert.Equal(t, "Account", innerField1.SourceField, "gorm embedded 字段的 SourceField 应为 Account")
+	assert.Equal(t, "acc_", innerField1.EmbeddedPrefix, "应有 acc_ 前缀")
 }

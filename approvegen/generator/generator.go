@@ -422,7 +422,7 @@ func genGlobalFunc(comment string, method *MyMethod, formatFunctionName func(nam
 	func1.AddBody(
 		gg.Return(
 			gg.Call(method.MethodName).AddParameter(lo.Map(method.MethodParams, func(param *ast.Field, _ int) any {
-				return gg.String(param.Names[0].Name)
+				return gg.String("%s", param.Names[0].Name)
 			})...),
 		),
 	)

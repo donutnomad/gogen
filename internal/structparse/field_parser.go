@@ -29,7 +29,7 @@ func (c *ParseContext) parseStructFieldsWithStackAndImportsAndBaseDir(fieldList 
 		}
 
 		if len(field.Names) == 0 {
-			// 匿名字段 (嵌入字段)
+			// 匿名字段 (嵌入字段) - 直接通过字段名访问，不需要设置 SourceField
 			if shouldExpandEmbeddedField(fieldType) {
 				// 需要扩展的嵌入字段，尝试递归解析
 				embeddedFields, err := c.parseEmbeddedStructWithStack(fieldType, stack, imports, baseDir)
@@ -58,8 +58,16 @@ func (c *ParseContext) parseStructFieldsWithStackAndImportsAndBaseDir(fieldList 
 					if err != nil {
 						return nil, err
 					}
-					// 为展开的字段添加 embeddedPrefix
+					// 为展开的字段添加 embeddedPrefix 和 SourceField
 					for i := range embeddedFields {
+						// 设置嵌入字段在主结构体中的访问路径
+						// 支持多层嵌套：Outer.Inner.Field
+						if embeddedFields[i].SourceField == "" {
+							embeddedFields[i].SourceField = name.Name
+						} else {
+							// 多层嵌套时，累加路径
+							embeddedFields[i].SourceField = name.Name + "." + embeddedFields[i].SourceField
+						}
 						if embeddedPrefix != "" {
 							// 累加 prefix（支持多层嵌套）
 							if embeddedFields[i].EmbeddedPrefix != "" {

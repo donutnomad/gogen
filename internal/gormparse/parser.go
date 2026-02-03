@@ -22,6 +22,7 @@ type GormFieldInfo struct {
 	GormDataType   string // GORM 数据类型，从类型的 GormDataType() 方法返回值解析（如 json）
 	IsEmbedded     bool   // 是否为嵌入字段
 	SourceType     string // 字段来源类型,为空表示来自结构体本身,否则表示来自嵌入的结构体
+	SourceField    string // 嵌入字段在主结构体中的字段名，用于生成访问路径（如 "Address"）
 	Tag            string // 字段标签
 	EmbeddedPrefix string // gorm embedded 字段的 prefix
 }
@@ -152,6 +153,7 @@ func ParseGormModel(structInfo *structparse.StructInfo) (*GormModelInfo, error) 
 			PkgPath:        field.PkgPath,        // 复制包路径
 			PkgAlias:       field.PkgAlias,       // 复制包别名
 			SourceType:     field.SourceType,     // 复制来源信息
+			SourceField:    field.SourceField,    // 复制嵌入字段名
 			Tag:            field.Tag,            // 保存标签信息
 			EmbeddedPrefix: field.EmbeddedPrefix, // 复制 embeddedPrefix
 		}

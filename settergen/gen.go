@@ -31,8 +31,15 @@ func generateToMapMethod(gen *gg.Generator, model *gormparse.GormModelInfo) {
 		if f.ColumnName == "" {
 			continue
 		}
+		// 构建访问路径：如果是嵌入字段，使用 receiver.SourceField.Name
+		var accessPath string
+		if f.SourceField != "" {
+			accessPath = receiverVar + "." + f.SourceField + "." + f.Name
+		} else {
+			accessPath = receiverVar + "." + f.Name
+		}
 		body = append(body,
-			gg.S("values[%s] = %s.%s", gg.Lit(f.ColumnName), receiverVar, f.Name),
+			gg.S("values[%s] = %s", gg.Lit(f.ColumnName), accessPath),
 		)
 	}
 

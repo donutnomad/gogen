@@ -24,6 +24,7 @@ type FieldInfo struct {
 	PkgAlias       string // 包在源文件中的别名（如果有）
 	Tag            string // 字段标签
 	SourceType     string // 字段来源类型，为空表示来自结构体本身，否则表示来自嵌入的结构体
+	SourceField    string // 嵌入字段在主结构体中的字段名，用于生成访问路径（如 "Address"）
 	EmbeddedPrefix string // gorm embedded 字段的 prefix，用于列名生成
 }
 
