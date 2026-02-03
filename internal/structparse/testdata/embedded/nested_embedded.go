@@ -21,13 +21,7 @@ type NestedEmbeddedPO struct {
 
 // MixedEmbeddedPO 测试混合场景：匿名嵌入 + gorm embedded
 type MixedEmbeddedPO struct {
-	BaseModel           // 匿名嵌入，直接访问
-	Name    string      `gorm:"column:name"`
-	Account InnerStruct `gorm:"embedded;embeddedPrefix:acc_"` // gorm embedded，需要通过 Account 访问
-}
-
-// BaseModel 基础模型，用于匿名嵌入测试
-type BaseModel struct {
-	ID        int64 `gorm:"primaryKey"`
-	CreatedAt int64 `gorm:"column:created_at"`
+	BaseModel             // 匿名嵌入，直接访问
+	Name      string      `gorm:"column:name"`
+	Account   InnerStruct `gorm:"embedded;embeddedPrefix:acc_"` // gorm embedded，需要通过 Account 访问
 }
