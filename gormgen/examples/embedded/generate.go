@@ -11,16 +11,16 @@ import (
 // ================ gormgen ================
 
 type ArticleSchemaType struct {
-	ID        gsql.IntField[uint64]
-	Title     gsql.StringField[string]
-	Content   gsql.StringField[string]
-	CreatedBy gsql.StringField[string]
-	CreatedAt gsql.DateTimeField[time.Time]
-	UpdatedBy gsql.StringField[string]
-	UpdatedAt gsql.DateTimeField[time.Time]
-	fieldType Article
-	alias     string
-	tableName string
+	ID             gsql.IntField[uint64]
+	Title          gsql.StringField[string]
+	Content        gsql.StringField[string]
+	AuditCreatedBy gsql.StringField[string]
+	AuditCreatedAt gsql.DateTimeField[time.Time]
+	AuditUpdatedBy gsql.StringField[string]
+	AuditUpdatedAt gsql.DateTimeField[time.Time]
+	fieldType      Article
+	alias          string
+	tableName      string
 }
 
 func (t ArticleSchemaType) TableName() string {
@@ -36,10 +36,10 @@ func (t *ArticleSchemaType) WithTable(tableName string) {
 	t.ID = t.ID.WithTable(&tn)
 	t.Title = t.Title.WithTable(&tn)
 	t.Content = t.Content.WithTable(&tn)
-	t.CreatedBy = t.CreatedBy.WithTable(&tn)
-	t.CreatedAt = t.CreatedAt.WithTable(&tn)
-	t.UpdatedBy = t.UpdatedBy.WithTable(&tn)
-	t.UpdatedAt = t.UpdatedAt.WithTable(&tn)
+	t.AuditCreatedBy = t.AuditCreatedBy.WithTable(&tn)
+	t.AuditCreatedAt = t.AuditCreatedAt.WithTable(&tn)
+	t.AuditUpdatedBy = t.AuditUpdatedBy.WithTable(&tn)
+	t.AuditUpdatedAt = t.AuditUpdatedAt.WithTable(&tn)
 }
 
 func (t ArticleSchemaType) As(alias string) ArticleSchemaType {
@@ -62,10 +62,10 @@ func (t ArticleSchemaType) AllFields() field.BaseFields {
 		t.ID,
 		t.Title,
 		t.Content,
-		t.CreatedBy,
-		t.CreatedAt,
-		t.UpdatedBy,
-		t.UpdatedAt,
+		t.AuditCreatedBy,
+		t.AuditCreatedAt,
+		t.AuditUpdatedBy,
+		t.AuditUpdatedAt,
 	}
 }
 
@@ -77,15 +77,155 @@ func (t ArticleSchemaType) Star() field.IField {
 }
 
 var ArticleSchema = ArticleSchemaType{
-	tableName: "articles",
-	ID:        gsql.IntFieldOf[uint64]("articles", "id", field.FlagPrimaryKey),
-	Title:     gsql.StringFieldOf[string]("articles", "title"),
-	Content:   gsql.StringFieldOf[string]("articles", "content"),
-	CreatedBy: gsql.StringFieldOf[string]("articles", "audit_created_by"),
-	CreatedAt: gsql.DateTimeFieldOf[time.Time]("articles", "audit_created_at"),
-	UpdatedBy: gsql.StringFieldOf[string]("articles", "audit_updated_by"),
-	UpdatedAt: gsql.DateTimeFieldOf[time.Time]("articles", "audit_updated_at"),
-	fieldType: Article{},
+	tableName:      "articles",
+	ID:             gsql.IntFieldOf[uint64]("articles", "id", field.FlagPrimaryKey),
+	Title:          gsql.StringFieldOf[string]("articles", "title"),
+	Content:        gsql.StringFieldOf[string]("articles", "content"),
+	AuditCreatedBy: gsql.StringFieldOf[string]("articles", "audit_created_by"),
+	AuditCreatedAt: gsql.DateTimeFieldOf[time.Time]("articles", "audit_created_at"),
+	AuditUpdatedBy: gsql.StringFieldOf[string]("articles", "audit_updated_by"),
+	AuditUpdatedAt: gsql.DateTimeFieldOf[time.Time]("articles", "audit_updated_at"),
+	fieldType:      Article{},
+}
+
+type CompanySchemaType struct {
+	ID           gsql.IntField[uint64]
+	Name         gsql.StringField[string]
+	HomeCountry  gsql.StringField[string]
+	HomeProvince gsql.StringField[string]
+	HomeCity     gsql.StringField[string]
+	WorkCountry  gsql.StringField[string]
+	WorkProvince gsql.StringField[string]
+	WorkCity     gsql.StringField[string]
+	fieldType    Company
+	alias        string
+	tableName    string
+}
+
+func (t CompanySchemaType) TableName() string {
+	return t.tableName
+}
+
+func (t CompanySchemaType) Alias() string {
+	return t.alias
+}
+
+func (t *CompanySchemaType) WithTable(tableName string) {
+	tn := gsql.TN(tableName)
+	t.ID = t.ID.WithTable(&tn)
+	t.Name = t.Name.WithTable(&tn)
+	t.HomeCountry = t.HomeCountry.WithTable(&tn)
+	t.HomeProvince = t.HomeProvince.WithTable(&tn)
+	t.HomeCity = t.HomeCity.WithTable(&tn)
+	t.WorkCountry = t.WorkCountry.WithTable(&tn)
+	t.WorkProvince = t.WorkProvince.WithTable(&tn)
+	t.WorkCity = t.WorkCity.WithTable(&tn)
+}
+
+func (t CompanySchemaType) As(alias string) CompanySchemaType {
+	var ret = t
+	ret.alias = alias
+	ret.WithTable(alias)
+	return ret
+}
+
+func (t CompanySchemaType) ModelType() *Company {
+	return &t.fieldType
+}
+
+func (t CompanySchemaType) ModelTypeAny() any {
+	return &t.fieldType
+}
+
+func (t CompanySchemaType) AllFields() field.BaseFields {
+	return field.BaseFields{
+		t.ID,
+		t.Name,
+		t.HomeCountry,
+		t.HomeProvince,
+		t.HomeCity,
+		t.WorkCountry,
+		t.WorkProvince,
+		t.WorkCity,
+	}
+}
+
+func (t CompanySchemaType) Star() field.IField {
+	if t.alias != "" {
+		return gsql.StarWith(t.alias)
+	}
+	return gsql.StarWith(t.tableName)
+}
+
+var CompanySchema = CompanySchemaType{
+	tableName:    "companies",
+	ID:           gsql.IntFieldOf[uint64]("companies", "id", field.FlagPrimaryKey),
+	Name:         gsql.StringFieldOf[string]("companies", "name"),
+	HomeCountry:  gsql.StringFieldOf[string]("companies", "home_country"),
+	HomeProvince: gsql.StringFieldOf[string]("companies", "home_province"),
+	HomeCity:     gsql.StringFieldOf[string]("companies", "home_city"),
+	WorkCountry:  gsql.StringFieldOf[string]("companies", "work_country"),
+	WorkProvince: gsql.StringFieldOf[string]("companies", "work_province"),
+	WorkCity:     gsql.StringFieldOf[string]("companies", "work_city"),
+	fieldType:    Company{},
+}
+
+type OrderSchemaType struct {
+	ID         gsql.IntField[uint64]
+	TableNameT gsql.StringField[string]
+	fieldType  Order
+	alias      string
+	tableName  string
+}
+
+func (t OrderSchemaType) TableName() string {
+	return t.tableName
+}
+
+func (t OrderSchemaType) Alias() string {
+	return t.alias
+}
+
+func (t *OrderSchemaType) WithTable(tableName string) {
+	tn := gsql.TN(tableName)
+	t.ID = t.ID.WithTable(&tn)
+	t.TableNameT = t.TableNameT.WithTable(&tn)
+}
+
+func (t OrderSchemaType) As(alias string) OrderSchemaType {
+	var ret = t
+	ret.alias = alias
+	ret.WithTable(alias)
+	return ret
+}
+
+func (t OrderSchemaType) ModelType() *Order {
+	return &t.fieldType
+}
+
+func (t OrderSchemaType) ModelTypeAny() any {
+	return &t.fieldType
+}
+
+func (t OrderSchemaType) AllFields() field.BaseFields {
+	return field.BaseFields{
+		t.ID,
+		t.TableNameT,
+	}
+}
+
+func (t OrderSchemaType) Star() field.IField {
+	if t.alias != "" {
+		return gsql.StarWith(t.alias)
+	}
+	return gsql.StarWith(t.tableName)
+}
+
+var OrderSchema = OrderSchemaType{
+	tableName:  "orders",
+	ID:         gsql.IntFieldOf[uint64]("orders", "id", field.FlagPrimaryKey),
+	TableNameT: gsql.StringFieldOf[string]("orders", "table_name"),
+	fieldType:  Order{},
 }
 
 type UserSchemaType struct {

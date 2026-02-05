@@ -6,8 +6,22 @@ import (
 
 	"github.com/donutnomad/gg"
 	"github.com/donutnomad/gogen/internal/gormparse"
+	"github.com/donutnomad/gogen/internal/utils"
 	"github.com/donutnomad/gogen/plugin"
 )
+
+// getSchemaFieldName 获取 Schema 结构体的字段名
+// 对于有 embeddedPrefix 的字段，将前缀转换为 PascalCase 加到字段名前面
+// 例如：embeddedPrefix="home_", fieldName="Country" -> "HomeCountry"
+func getSchemaFieldName(f gormparse.GormFieldInfo) string {
+	if f.EmbeddedPrefix == "" {
+		return f.Name
+	}
+	// 将 snake_case 前缀转换为 PascalCase
+	// "home_" -> "Home"
+	prefix := utils.UpperCamelCase(strings.TrimSuffix(f.EmbeddedPrefix, "_"))
+	return prefix + f.Name
+}
 
 // generateModelCode 使用 gg 生成单个模型的代码
 func generateModelCode(gen *gg.Generator, model *gormparse.GormModelInfo, gsqlPkg, fieldPkg *gg.PackageRef) {
@@ -18,12 +32,14 @@ func generateModelCode(gen *gg.Generator, model *gormparse.GormModelInfo, gsqlPk
 	}
 
 	// 处理字段名称冲突
+	// 检查最终的 Schema 字段名（应用 EmbeddedPrefix 后）是否与保留名冲突
 	reservedNames := []string{
 		"TableName", "Alias", "WithTable", "As",
 		"ModelType", "ModelTypeAny", "AllFields", "Star",
 	}
 	for idx, f := range model.Fields {
-		if slices.Contains(reservedNames, f.Name) {
+		schemaFieldName := getSchemaFieldName(f)
+		if slices.Contains(reservedNames, schemaFieldName) {
 			f.Name += "T"
 		}
 		model.Fields[idx] = f
@@ -38,7 +54,7 @@ func generateModelCode(gen *gg.Generator, model *gormparse.GormModelInfo, gsqlPk
 		s := group.NewStruct(structName)
 		for _, f := range model.Fields {
 			typeInfo := MapFieldTypeInfo(f)
-			s.AddField(f.Name, typeInfo.FieldType)
+			s.AddField(getSchemaFieldName(f), typeInfo.FieldType)
 		}
 		s.AddField("fieldType", rawModelName)
 		s.AddField("alias", "string")
@@ -77,8 +93,9 @@ func generateModelCode(gen *gg.Generator, model *gormparse.GormModelInfo, gsqlPk
 
 		body := []any{tnDecl}
 		for _, f := range model.Fields {
+			fieldName := getSchemaFieldName(f)
 			body = append(body,
-				gg.S("t.%s = t.%s.WithTable(&tn)", f.Name, f.Name),
+				gg.S("t.%s = t.%s.WithTable(&tn)", fieldName, fieldName),
 			)
 		}
 		group.NewFunction("WithTable").
@@ -130,7 +147,7 @@ func generateModelCode(gen *gg.Generator, model *gormparse.GormModelInfo, gsqlPk
 		// 收集所有字段作为切片元素
 		var fieldElements []any
 		for _, f := range model.Fields {
-			fieldElements = append(fieldElements, gg.S("t.%s", f.Name))
+			fieldElements = append(fieldElements, gg.S("t.%s", getSchemaFieldName(f)))
 		}
 
 		// 使用 Slice 构建 field.BaseFields{t.Field1, t.Field2, ...}
@@ -171,7 +188,7 @@ func generateModelCode(gen *gg.Generator, model *gormparse.GormModelInfo, gsqlPk
 			if flags != "" {
 				call.AddParameter(gg.S(flags))
 			}
-			anyStruct.AddField(f.Name, call)
+			anyStruct.AddField(getSchemaFieldName(f), call)
 		}
 		anyStruct.AddField("fieldType", gg.Value(rawModelName))
 
