@@ -21,7 +21,7 @@ type IUserAPI interface {
 	GetUser(ctx context.Context, id int64) (UserResponse, error)
 
 	// 创建用户
-	// @POST(/api/v1/user)
+	// @POST(/)
 	CreateUser(ctx context.Context, req CreateUserReq) (UserResponse, error)
 
 	// 删除用户

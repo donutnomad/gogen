@@ -50,7 +50,7 @@ func (a *UserAPIWrap) bind(router gin.IRoutes, method, path string, preHandlers,
 // @Router /api/v1/user/{id} [get]
 func (a *UserAPIWrap) GetUser(ctx *gin.Context) {
 	id := cast.ToInt64(ctx.Param("id"))
-	result, err := a.inner.GetUser(ctx, id)
+	result, err := a.inner.GetUser(ctx.Request.Context(), id)
 	onGinResponse[UserResponse](ctx, result, err)
 }
 
@@ -62,13 +62,13 @@ func (a *UserAPIWrap) GetUser(ctx *gin.Context) {
 // @Security Bearer
 // @Param req body CreateUserReq true "req"
 // @Success 200 {object} UserResponse
-// @Router /api/v1/user [post]
+// @Router / [post]
 func (a *UserAPIWrap) CreateUser(ctx *gin.Context) {
 	var req CreateUserReq
 	if !onGinBind(ctx, &req, "JSON") {
 		return
 	}
-	result, err := a.inner.CreateUser(ctx, req)
+	result, err := a.inner.CreateUser(ctx.Request.Context(), req)
 	onGinResponse[UserResponse](ctx, result, err)
 }
 
@@ -83,7 +83,7 @@ func (a *UserAPIWrap) CreateUser(ctx *gin.Context) {
 // @Router /api/v1/user/{id} [delete]
 func (a *UserAPIWrap) DeleteUser(ctx *gin.Context) {
 	id := cast.ToInt64(ctx.Param("id"))
-	err := a.inner.DeleteUser(ctx, id)
+	err := a.inner.DeleteUser(ctx.Request.Context(), id)
 	onGinResponse[string](ctx, "", err)
 }
 
@@ -100,7 +100,7 @@ func (a *UserAPIWrap) BindCreateUser(router gin.IRoutes, preHandlers ...gin.Hand
 	if a.handler != nil {
 		handlers = append(handlers, a.handler.PreHandlers()...)
 	}
-	a.bind(router, "POST", "/api/v1/user", preHandlers, handlers, a.CreateUser)
+	a.bind(router, "POST", "/", preHandlers, handlers, a.CreateUser)
 }
 
 func (a *UserAPIWrap) BindDeleteUser(router gin.IRoutes, preHandlers ...gin.HandlerFunc) {
@@ -116,3 +116,38 @@ func (a *UserAPIWrap) BindAll(router gin.IRoutes, preHandlers ...gin.HandlerFunc
 	a.BindCreateUser(router, preHandlers...)
 	a.BindDeleteUser(router, preHandlers...)
 }
+
+//
+//func onGinBind(c *gin.Context, val any, typ string) bool {
+//    switch typ {
+//    case "JSON":
+//        if err := c.ShouldBindJSON(val); err != nil {
+//            c.JSON(400, gin.H{"error": err.Error()})
+//            return false
+//        }
+//    case "FORM":
+//        if err := c.ShouldBind(val); err != nil {
+//            c.JSON(400, gin.H{"error": err.Error()})
+//            return false
+//        }
+//    case "QUERY":
+//        if err := c.ShouldBindQuery(val); err != nil {
+//            c.JSON(400, gin.H{"error": err.Error()})
+//            return false
+//        }
+//    default:
+//        if err := c.ShouldBind(val); err != nil {
+//            c.JSON(400, gin.H{"error": err.Error()})
+//            return false
+//        }
+//    }
+//    return true
+//}
+//
+//func onGinResponse[T any](c *gin.Context, data any, err error) {
+//    c.JSON(200, data)
+//}
+//
+//func onGinBindErr(c *gin.Context, err error) {
+//    c.JSON(500, gin.H{"error": err.Error()})
+//}

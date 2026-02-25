@@ -3,6 +3,7 @@ package swaggen
 import (
 	"fmt"
 	"go/token"
+	"strings"
 
 	"github.com/donutnomad/gogen/internal/xast"
 	parsers "github.com/donutnomad/gogen/swaggen/parser"
@@ -81,18 +82,26 @@ type SwaggerMethod struct {
 func (s SwaggerMethod) GetPaths() []string {
 	var ret []string
 	for _, item := range s.Def {
-		switch v := item.(type) {
+		var v string
+		switch t := item.(type) {
 		case *parsers.GET:
-			ret = append(ret, v.Value)
+			v = t.Value
 		case *parsers.POST:
-			ret = append(ret, v.Value)
+			v = t.Value
 		case *parsers.PUT:
-			ret = append(ret, v.Value)
+			v = t.Value
 		case *parsers.DELETE:
-			ret = append(ret, v.Value)
+			v = t.Value
 		case *parsers.PATCH:
-			ret = append(ret, v.Value)
+			v = t.Value
+		default:
+			continue
 		}
+		v = strings.TrimRight(v, "/")
+		if v == "" {
+			v = "/"
+		}
+		ret = append(ret, v)
 	}
 	return ret
 }
