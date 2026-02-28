@@ -190,7 +190,12 @@ func (g *SwaggerGenerator) generateMethodComments(method SwaggerMethod, iface Sw
 	prefix := iface.CommonDef.GetPrefix()
 
 	for _, pathRouter := range method.GetPaths() {
-		lines = append(lines, fmt.Sprintf("// @Router %s [%s]", prefix+pathRouter, strings.ToLower(method.GetHTTPMethod())))
+		fullPath := prefix + pathRouter
+		fullPath = strings.TrimRight(fullPath, "/")
+		if fullPath == "" {
+			fullPath = "/"
+		}
+		lines = append(lines, fmt.Sprintf("// @Router %s [%s]", fullPath, strings.ToLower(method.GetHTTPMethod())))
 	}
 
 	return lines
@@ -587,7 +592,12 @@ func (g *GinGenerator) generateMethodBinding(iface SwaggerInterface, method Swag
 	prefix := iface.CommonDef.GetPrefix()
 
 	ginPaths := lo.Map(method.GetPaths(), func(item string, index int) string {
-		return prefix + convertPathToGinFormat(item)
+		fullPath := prefix + convertPathToGinFormat(item)
+		fullPath = strings.TrimRight(fullPath, "/")
+		if fullPath == "" {
+			fullPath = "/"
+		}
+		return fullPath
 	})
 
 	template := `

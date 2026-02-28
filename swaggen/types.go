@@ -3,7 +3,6 @@ package swaggen
 import (
 	"fmt"
 	"go/token"
-	"strings"
 
 	"github.com/donutnomad/gogen/internal/xast"
 	parsers "github.com/donutnomad/gogen/swaggen/parser"
@@ -96,10 +95,6 @@ func (s SwaggerMethod) GetPaths() []string {
 			v = t.Value
 		default:
 			continue
-		}
-		v = strings.TrimRight(v, "/")
-		if v == "" {
-			v = "/"
 		}
 		ret = append(ret, v)
 	}
