@@ -175,9 +175,15 @@ func getSetterImports(model *gormparse.GormModelInfo) []plugin.ImportWithAlias {
 		if strings.ToLower(f.Name) == "patch" {
 			continue
 		}
-		// 直接使用 PkgPath（已经正确填充）
-		if f.PkgPath != "" {
-			// 如果已经存在，保留已有的别名（优先使用第一个遇到的别名）
+		if f.PkgPath == "" {
+			continue
+		}
+		// 验证字段类型确实引用了该包
+		prefix := f.PkgAlias
+		if prefix == "" {
+			prefix = pkgNameFromPath(f.PkgPath)
+		}
+		if strings.Contains(f.Type, prefix+".") {
 			if _, exists := imports[f.PkgPath]; !exists {
 				imports[f.PkgPath] = f.PkgAlias
 			}
@@ -189,4 +195,12 @@ func getSetterImports(model *gormparse.GormModelInfo) []plugin.ImportWithAlias {
 		result = append(result, plugin.ImportWithAlias{Path: path, Alias: alias})
 	}
 	return result
+}
+
+// pkgNameFromPath 从 import path 中提取包名（最后一段）
+func pkgNameFromPath(path string) string {
+	if i := strings.LastIndex(path, "/"); i >= 0 {
+		return path[i+1:]
+	}
+	return path
 }

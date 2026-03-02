@@ -32,17 +32,21 @@ func NewImportResolver(filePath string) (*ImportResolver, error) {
 	for _, imp := range file.Imports {
 		importPath := strings.Trim(imp.Path.Value, "\"")
 
-		var alias string
-		if imp.Name != nil {
-			// 有显式别名
-			alias = imp.Name.Name
-		} else {
-			// 使用路径最后一部分作为包名
-			parts := strings.Split(importPath, "/")
-			alias = parts[len(parts)-1]
-		}
+		// 包路径最后一部分作为默认包名
+		parts := strings.Split(importPath, "/")
+		pkgName := parts[len(parts)-1]
 
-		resolver.fileImports[alias] = importPath
+		if imp.Name != nil {
+			alias := imp.Name.Name
+			if alias == "_" || alias == "." {
+				// blank import 或 dot import，用包名作为 key 以支持注解中的类型引用
+				resolver.fileImports[pkgName] = importPath
+			} else {
+				resolver.fileImports[alias] = importPath
+			}
+		} else {
+			resolver.fileImports[pkgName] = importPath
+		}
 	}
 
 	return resolver, nil

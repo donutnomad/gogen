@@ -33,16 +33,35 @@ func (g *MockGenerator) generateDefinition(targets []*mockTargetInfo) (*gg.Gener
 		reflectPkg = gen.P("reflect")
 	}
 
-	// 收集所有需要的导入
-	importPaths := make(map[string]bool)
+	// 收集所有接口方法实际引用的包前缀
+	usedPkgs := make(map[string]bool)
 	for _, t := range targets {
-		for path := range t.interface_.Imports {
-			importPaths[path] = true
+		for _, m := range t.interface_.Methods {
+			for _, p := range m.Params {
+				collectPkgPrefixes(p.Type, usedPkgs)
+			}
+			for _, r := range m.Results {
+				collectPkgPrefixes(r.Type, usedPkgs)
+			}
+			if m.Variadic != nil {
+				collectPkgPrefixes(m.Variadic.Type, usedPkgs)
+			}
+		}
+		// 泛型约束中可能引用外部包
+		for _, tp := range t.interface_.TypeParams {
+			collectPkgPrefixes(tp.Constraint, usedPkgs)
 		}
 	}
-	for path := range importPaths {
-		if path != "go.uber.org/mock/gomock" && path != "reflect" {
-			gen.P(path)
+
+	// 仅导入方法签名中使用的包
+	for _, t := range targets {
+		for path, alias := range t.interface_.Imports {
+			if path == "go.uber.org/mock/gomock" || path == "reflect" {
+				continue
+			}
+			if usedPkgs[alias] {
+				gen.P(path)
+			}
 		}
 	}
 
@@ -416,4 +435,56 @@ func getRetNames(method *MethodInfo) []string {
 	}
 
 	return names
+}
+
+// collectPkgPrefixes 从类型字符串中提取所有包前缀（如 "context"、"commonid"）
+// 处理指针 *、切片 []、map、泛型 [T]、func 等复合类型
+func collectPkgPrefixes(typeStr string, prefixes map[string]bool) {
+	// 使用简单的词法扫描：找到所有 "identifier." 模式中的 identifier
+	// 包前缀的特征：一个标识符后面紧跟一个 "."，且后面是另一个标识符（大写开头）
+	i := 0
+	for i < len(typeStr) {
+		ch := typeStr[i]
+
+		// 跳过非标识符字符
+		if !isIdentChar(ch) {
+			i++
+			continue
+		}
+
+		// 读取一个完整的标识符
+		start := i
+		for i < len(typeStr) && isIdentChar(typeStr[i]) {
+			i++
+		}
+		ident := typeStr[start:i]
+
+		// 检查标识符后面是否紧跟 "."
+		if i < len(typeStr) && typeStr[i] == '.' {
+			// 跳过 "..."（省略号）
+			if i+1 < len(typeStr) && typeStr[i+1] == '.' {
+				continue
+			}
+			// 跳过 Go 关键字（如 func、map、chan、struct、interface）
+			if isGoTypeKeyword(ident) {
+				i++ // 跳过 "."
+				continue
+			}
+			// 这是一个包前缀
+			prefixes[ident] = true
+			i++ // 跳过 "."
+		}
+	}
+}
+
+func isIdentChar(ch byte) bool {
+	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_'
+}
+
+func isGoTypeKeyword(s string) bool {
+	switch s {
+	case "func", "map", "chan", "struct", "interface":
+		return true
+	}
+	return false
 }

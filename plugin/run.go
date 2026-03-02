@@ -280,20 +280,37 @@ func RunWithOptionsAndStats(ctx context.Context, opts *RunOptions) (*RunStats, e
 	}
 
 	// 合并同一文件的定义并写入
+	writeStart := time.Now()
+	var totalMergeDuration, totalFormatDuration time.Duration
 	for path, definitions := range fileDefinitions {
 		genNames := fileGenNames[path]
+
+		mergeStart := time.Now()
 		merged, err := mergeDefinitionsWithSeparator(definitions, genNames)
+		mergeDur := time.Since(mergeStart)
+		totalMergeDuration += mergeDur
 		if err != nil {
 			allErrors = append(allErrors, fmt.Errorf("合并文件 %s 的定义失败: %w", path, err))
 			continue
 		}
 
+		formatStart := time.Now()
 		if err := writeGGFile(path, merged); err != nil {
 			allErrors = append(allErrors, fmt.Errorf("写入文件 %s 失败: %w", path, err))
 		} else {
+			formatDur := time.Since(formatStart)
+			totalFormatDuration += formatDur
 			stats.FileCount++
-			fmt.Printf("生成文件: %s\n", path)
+			if opts.Verbose {
+				fmt.Printf("生成文件: %s (合并: %v, 格式化+写入: %v)\n", path, mergeDur, formatDur)
+			} else {
+				fmt.Printf("生成文件: %s\n", path)
+			}
 		}
+	}
+	if opts.Verbose {
+		fmt.Printf("\n文件写入统计: %d 个文件, 合并总耗时: %v, 格式化+写入总耗时: %v, 总耗时: %v\n",
+			stats.FileCount, totalMergeDuration, totalFormatDuration, time.Since(writeStart))
 	}
 
 	stats.GenerateDuration = time.Since(generateStart)

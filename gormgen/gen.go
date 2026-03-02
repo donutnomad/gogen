@@ -203,9 +203,17 @@ func getGormQueryImports(model *gormparse.GormModelInfo) []plugin.ImportWithAlia
 	imports := make(map[string]string)
 
 	for _, f := range model.Fields {
-		// 直接使用 PkgPath（已经正确填充）
-		if f.PkgPath != "" {
-			// 如果已经存在，保留已有的别名（优先使用第一个遇到的别名）
+		if f.PkgPath == "" {
+			continue
+		}
+		// 对字段做类型映射，检查映射后是否还引用原始包
+		typeInfo := MapFieldTypeInfo(f)
+		prefix := f.PkgAlias
+		if prefix == "" {
+			prefix = pkgNameFromPath(f.PkgPath)
+		}
+		if strings.Contains(typeInfo.FieldType, prefix+".") ||
+			strings.Contains(typeInfo.Constructor, prefix+".") {
 			if _, exists := imports[f.PkgPath]; !exists {
 				imports[f.PkgPath] = f.PkgAlias
 			}
@@ -217,4 +225,12 @@ func getGormQueryImports(model *gormparse.GormModelInfo) []plugin.ImportWithAlia
 		result = append(result, plugin.ImportWithAlias{Path: path, Alias: alias})
 	}
 	return result
+}
+
+// pkgNameFromPath 从 import path 中提取包名（最后一段）
+func pkgNameFromPath(path string) string {
+	if i := strings.LastIndex(path, "/"); i >= 0 {
+		return path[i+1:]
+	}
+	return path
 }

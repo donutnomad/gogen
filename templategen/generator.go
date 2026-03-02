@@ -482,7 +482,123 @@ func (g *TemplateGenerator) collectTemplateData(filePath string, targets []*plug
 		return strings.Compare(a.Name, b.Name)
 	})
 
+	// 自动注册所有 DefineGroup 中有 PkgPath 的 TypeRef 到 ImportManager
+	// 同时注册方法参数/返回值中的包引用
+	autoRegisterImports(data, resolver)
+
 	return data, nil
+}
+
+// autoRegisterImports 自动将所有 DefineGroup 中有 PkgPath 的 TypeRef 注册到 ImportManager
+// 同时扫描方法参数和返回值中的包前缀，确保模板中使用的类型都有对应 import
+func autoRegisterImports(data *TemplateData, resolver *ImportResolver) {
+	registerDefines := func(defines DefineGroup) {
+		for _, values := range defines {
+			for _, ref := range values {
+				if ref.PkgPath != "" {
+					if ref.PkgAlias != "" && ref.PkgAlias != getPackageName(ref.PkgPath) {
+						data.Imports.AddAlias(ref.PkgPath, ref.PkgAlias)
+					} else {
+						data.Imports.Add(ref.PkgPath)
+					}
+				}
+			}
+		}
+	}
+
+	// 注册类型字符串中的包引用
+	registerTypeImport := func(typeStr string) {
+		if resolver == nil {
+			return
+		}
+		for _, prefix := range extractPkgPrefixes(typeStr) {
+			ref := resolver.ResolveTypeRef(prefix + ".X")
+			if ref.PkgPath != "" {
+				if ref.PkgAlias != "" && ref.PkgAlias != getPackageName(ref.PkgPath) {
+					data.Imports.AddAlias(ref.PkgPath, ref.PkgAlias)
+				} else {
+					data.Imports.Add(ref.PkgPath)
+				}
+			}
+		}
+	}
+
+	registerParams := func(params []ParamData, returns []ReturnData) {
+		for _, p := range params {
+			registerTypeImport(p.Type)
+		}
+		for _, r := range returns {
+			registerTypeImport(r.Type)
+		}
+	}
+
+	for _, s := range data.Structs {
+		registerDefines(s.Defines)
+		for _, m := range s.Methods {
+			registerDefines(m.Defines)
+			registerParams(m.Params, m.Returns)
+		}
+	}
+	for _, iface := range data.Interfaces {
+		registerDefines(iface.Defines)
+		for _, m := range iface.Methods {
+			registerParams(m.Params, m.Returns)
+		}
+	}
+	for _, fn := range data.Functions {
+		registerDefines(fn.Defines)
+		registerParams(fn.Params, fn.Returns)
+	}
+}
+
+// extractPkgPrefixes 从类型字符串中提取所有包前缀
+// 例如: "domain.NewRatioPolicyParams" -> ["domain"]
+// 例如: "map[commonid.BusinessID]*domain.Node" -> ["commonid", "domain"]
+func extractPkgPrefixes(typeStr string) []string {
+	var prefixes []string
+	seen := make(map[string]bool)
+	i := 0
+	for i < len(typeStr) {
+		ch := typeStr[i]
+		if !isIdentCharTG(ch) {
+			i++
+			continue
+		}
+		start := i
+		for i < len(typeStr) && isIdentCharTG(typeStr[i]) {
+			i++
+		}
+		ident := typeStr[start:i]
+		if i < len(typeStr) && typeStr[i] == '.' {
+			// 跳过 "..." 省略号
+			if i+1 < len(typeStr) && typeStr[i+1] == '.' {
+				continue
+			}
+			// 跳过 Go 类型关键字
+			if isGoTypeKeywordTG(ident) {
+				i++
+				continue
+			}
+			if !seen[ident] {
+				seen[ident] = true
+				prefixes = append(prefixes, ident)
+			}
+			i++ // 跳过 "."
+		}
+	}
+	return prefixes
+}
+
+func isIdentCharTG(ch byte) bool {
+	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_'
+}
+
+func isGoTypeKeywordTG(s string) bool {
+	switch s {
+	case "func", "map", "chan", "struct", "interface":
+		return true
+	}
+	return false
 }
 
 // parseDefines 解析 @Define 注解
