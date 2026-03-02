@@ -162,6 +162,8 @@ func (g *CodeGenerator) generateDefinition(codes []*codeInfo) (*gg.Generator, er
 
 	// 添加必要的包导入
 	gen.P("errors")
+	gen.P("reflect")
+	gen.P("unsafe")
 	grpcPkg := gen.P("google.golang.org/grpc/codes")
 
 	body := gen.Body()
