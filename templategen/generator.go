@@ -339,6 +339,14 @@ func (g *TemplateGenerator) collectTemplateData(filePath string, targets []*plug
 					}
 					structMap[target.Target.Name] = sd
 				}
+			} else if _, exists := structMap[target.Target.Name]; !exists {
+				// 无 @Define 参数的 struct（虚拟注解分发），只提取字段
+				structMap[target.Target.Name] = &StructData{
+					Name:    target.Target.Name,
+					Fields:  extractFields(target.Target.Node),
+					Defines: DefineGroup{},
+					Methods: []MethodData{},
+				}
 			}
 
 		case plugin.TargetInterface:

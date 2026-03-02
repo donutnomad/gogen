@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 )
@@ -353,6 +354,10 @@ func (s *Scanner) parseFile(filePath string) (result struct {
 			s.parseFuncDecl(fset, filePath, packageName, d, &result)
 		}
 	}
+
+	// 后处理：为无注解的 receiver struct 注入虚拟注解
+	// 当方法有注解但其 receiver struct 无注解时，自动将 struct 加入结果
+	s.injectReceiverStructs(file, filePath, packageName, &result)
 
 	return
 }
@@ -791,6 +796,88 @@ func trimQuotes(s string) string {
 		}
 	}
 	return s
+}
+
+// injectReceiverStructs 为无注解的 receiver struct 注入虚拟注解
+// 当方法有注解但其 receiver struct 无注解时，从 AST 中找到该 struct 并创建 AnnotatedTarget
+func (s *Scanner) injectReceiverStructs(file *ast.File, filePath, packageName string, result *struct {
+	structs    []*AnnotatedTarget
+	interfaces []*AnnotatedTarget
+	funcs      []*AnnotatedTarget
+	methods    []*AnnotatedTarget
+	vars       []*AnnotatedTarget
+	consts     []*AnnotatedTarget
+	comments   []*AnnotatedTarget
+	pkgConfig  *PackageConfig
+	err        error
+}) {
+	if len(result.methods) == 0 {
+		return
+	}
+
+	// 收集已有注解的 struct 名
+	existingStructs := make(map[string]bool)
+	for _, st := range result.structs {
+		existingStructs[st.Target.Name] = true
+	}
+
+	// 收集需要补充的 receiver struct 及其对应的注解名
+	needed := make(map[string][]*Annotation) // structName -> 虚拟注解列表（按 Name 去重）
+	for _, m := range result.methods {
+		cleanType := strings.TrimPrefix(m.Target.ReceiverType, "*")
+		if existingStructs[cleanType] {
+			continue
+		}
+		for _, ann := range m.Annotations {
+			needed[cleanType] = appendUniqueAnnotation(needed[cleanType], ann.Name)
+		}
+	}
+
+	if len(needed) == 0 {
+		return
+	}
+
+	// 从 AST 中查找这些 struct 并创建 AnnotatedTarget
+	for _, decl := range file.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if !ok || genDecl.Tok != token.TYPE {
+			continue
+		}
+		for _, spec := range genDecl.Specs {
+			typeSpec, ok := spec.(*ast.TypeSpec)
+			if !ok {
+				continue
+			}
+			if _, ok := typeSpec.Type.(*ast.StructType); !ok {
+				continue
+			}
+			anns, ok := needed[typeSpec.Name.Name]
+			if !ok {
+				continue
+			}
+			target := &Target{
+				Kind:        TargetStruct,
+				Name:        typeSpec.Name.Name,
+				PackageName: packageName,
+				FilePath:    filePath,
+				Position:    typeSpec.Pos(),
+				Node:        typeSpec,
+			}
+			result.structs = append(result.structs, &AnnotatedTarget{
+				Target:      target,
+				Annotations: anns,
+			})
+			delete(needed, typeSpec.Name.Name)
+		}
+	}
+}
+
+// appendUniqueAnnotation 添加不重复的虚拟注解（只比较 Name）
+func appendUniqueAnnotation(anns []*Annotation, name string) []*Annotation {
+	if slices.ContainsFunc(anns, func(a *Annotation) bool { return a.Name == name }) {
+		return anns
+	}
+	return append(anns, &Annotation{Name: name})
 }
 
 // parseVarConstDecl 解析 var/const 声明
