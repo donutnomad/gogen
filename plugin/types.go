@@ -217,11 +217,16 @@ type ImportWithAlias struct {
 }
 
 // AddDefinition 添加 gg 定义
+// 如果同一路径已有定义，则自动合并（而非覆盖）
 func (r *GenerateResult) AddDefinition(path string, gen *gg.Generator) {
 	if r.Definitions == nil {
 		r.Definitions = make(map[string]*gg.Generator)
 	}
-	r.Definitions[path] = gen
+	if existing, ok := r.Definitions[path]; ok {
+		existing.Merge(gen)
+	} else {
+		r.Definitions[path] = gen
+	}
 }
 
 // AddRawOutput 添加原始字节输出
