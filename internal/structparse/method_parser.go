@@ -3,8 +3,6 @@ package structparse
 import (
 	"fmt"
 	"go/ast"
-	"go/parser"
-	"go/token"
 	"os"
 	"path/filepath"
 	"strings"
@@ -12,15 +10,23 @@ import (
 	"github.com/donutnomad/gogen/internal/xast"
 )
 
-// parseMethodsFromPackage 从包中的所有文件解析指定结构体的方法
-func parseMethodsFromPackage(targetFile, structName string) ([]MethodInfo, error) {
+// parseMethodsFromPackage 从包中的所有文件解析指定结构体的方法（使用 ParseContext 缓存）
+func (c *ParseContext) parseMethodsFromPackage(targetFile, structName string) ([]MethodInfo, error) {
+	// 检查方法缓存
+	dir := filepath.Dir(targetFile)
+	cacheKey := dir + ":" + structName
+
+	c.fileCacheMu.Lock()
+	if cached, ok := c.methodCache[cacheKey]; ok {
+		c.fileCacheMu.Unlock()
+		return cached.methods, cached.err
+	}
+	c.fileCacheMu.Unlock()
+
 	var allMethods []MethodInfo
 
-	// 获取目标文件所在的目录
-	dir := filepath.Dir(targetFile)
-
 	// 查找目录中的所有Go文件
-	files, err := findGoFilesInDir(dir)
+	files, err := c.getDirGoFiles(dir)
 	if err != nil {
 		return nil, fmt.Errorf("查找包文件失败: %v", err)
 	}
@@ -33,8 +39,8 @@ func parseMethodsFromPackage(targetFile, structName string) ([]MethodInfo, error
 			continue
 		}
 
-		// 解析这个文件中的方法
-		methods, err := parseMethodsFromFile(file, structName)
+		// 解析这个文件中的方法（使用缓存的 AST）
+		methods, err := c.parseMethodsFromFile(file, structName)
 		if err != nil {
 			// 记录错误但继续处理其他文件
 			continue
@@ -42,38 +48,17 @@ func parseMethodsFromPackage(targetFile, structName string) ([]MethodInfo, error
 		allMethods = append(allMethods, methods...)
 	}
 
+	// 写入缓存
+	c.fileCacheMu.Lock()
+	c.methodCache[cacheKey] = cachedMethods{allMethods, nil}
+	c.fileCacheMu.Unlock()
+
 	return allMethods, nil
 }
 
-// fileMayContainStructMethods 检查文件是否可能包含指定结构体的方法
-func fileMayContainStructMethods(filename, structName string) bool {
-	content, err := os.ReadFile(filename)
-	if err != nil {
-		return false
-	}
-
-	contentStr := string(content)
-
-	// 检查是否包含该结构体作为接收器的方法
-	// 使用更灵活的匹配，考虑接收器名称和空格
-	patterns := []string{
-		fmt.Sprintf("*%s)", structName), // 指针接收器，如 (u *User)
-		fmt.Sprintf("%s)", structName),  // 值接收器，如 (u User)
-	}
-
-	for _, pattern := range patterns {
-		if strings.Contains(contentStr, pattern) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// parseMethodsFromFile 从单个文件解析指定结构体的方法
-func parseMethodsFromFile(filename, structName string) ([]MethodInfo, error) {
-	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+// parseMethodsFromFile 从单个文件解析指定结构体的方法（使用缓存的 AST）
+func (c *ParseContext) parseMethodsFromFile(filename, structName string) ([]MethodInfo, error) {
+	node, _, err := c.getOrParseFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("解析文件失败: %w", err)
 	}
@@ -143,18 +128,27 @@ func parseMethodsFromFile(filename, structName string) ([]MethodInfo, error) {
 	return methods, nil
 }
 
-// findGoFilesInDir 查找目录中的所有Go文件（包括当前目录）
-func findGoFilesInDir(dir string) ([]string, error) {
-	var files []string
-	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
+// fileMayContainStructMethods 检查文件是否可能包含指定结构体的方法
+func fileMayContainStructMethods(filename, structName string) bool {
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		return false
+	}
+
+	contentStr := string(content)
+
+	// 检查是否包含该结构体作为接收器的方法
+	// 使用更灵活的匹配，考虑接收器名称和空格
+	patterns := []string{
+		fmt.Sprintf("*%s)", structName), // 指针接收器，如 (u *User)
+		fmt.Sprintf("%s)", structName),  // 值接收器，如 (u User)
+	}
+
+	for _, pattern := range patterns {
+		if strings.Contains(contentStr, pattern) {
+			return true
 		}
-		// 包含所有.go文件，但不包含测试文件
-		if strings.HasSuffix(path, ".go") && !strings.HasSuffix(path, "_test.go") {
-			files = append(files, path)
-		}
-		return nil
-	})
-	return files, err
+	}
+
+	return false
 }

@@ -129,3 +129,9 @@ func Parse(filePath string, receiverType string, funcName string) (*ParseResult2
 	mapper := NewMapper(filePath)
 	return mapper.Parse(receiverType, funcName)
 }
+
+// ParseWithCache 带缓存的解析
+func ParseWithCache(filePath string, receiverType string, funcName string, ctx *ParseContext2) (*ParseResult2, error) {
+	mapper := NewMapperWithCache(filePath, ctx)
+	return mapper.Parse(receiverType, funcName)
+}

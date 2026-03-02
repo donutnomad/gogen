@@ -3,7 +3,6 @@ package automap
 import (
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"os"
 	"reflect"
@@ -19,6 +18,9 @@ type Mapper struct {
 	filePath string
 	fset     *token.FileSet
 	file     *ast.File
+
+	// 共享解析上下文
+	parseCtx *ParseContext2
 
 	// 类型定义缓存
 	typeSpecs map[string]*ast.TypeSpec
@@ -52,6 +54,20 @@ type methodCallInfo struct {
 func NewMapper(filePath string) *Mapper {
 	return &Mapper{
 		filePath:    filePath,
+		parseCtx:    NewParseContext2(),
+		typeSpecs:   make(map[string]*ast.TypeSpec),
+		methodDecls: make(map[string]map[string]*ast.FuncDecl),
+	}
+}
+
+// NewMapperWithCache 创建带共享缓存的 Mapper
+func NewMapperWithCache(filePath string, ctx *ParseContext2) *Mapper {
+	if ctx == nil {
+		ctx = NewParseContext2()
+	}
+	return &Mapper{
+		filePath:    filePath,
+		parseCtx:    ctx,
 		typeSpecs:   make(map[string]*ast.TypeSpec),
 		methodDecls: make(map[string]map[string]*ast.FuncDecl),
 	}
@@ -95,10 +111,13 @@ func (m *Mapper) Parse(receiverType, funcName string) (*ParseResult2, error) {
 
 // parseFile 解析源文件
 func (m *Mapper) parseFile() error {
-	m.fset = token.NewFileSet()
-	var err error
-	m.file, err = parser.ParseFile(m.fset, m.filePath, nil, parser.ParseComments)
-	return err
+	file, fset, err := m.parseCtx.ASTCache.GetOrParse(m.filePath)
+	if err != nil {
+		return err
+	}
+	m.file = file
+	m.fset = fset
+	return nil
 }
 
 // analyzeFunction 分析目标函数

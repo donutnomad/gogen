@@ -9,9 +9,19 @@ import (
 
 // extractImports 提取文件中的导入信息（ParseContext 方法）
 func (c *ParseContext) extractImports(filename string) (map[string]*ImportInfo, error) {
-	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+	// 检查缓存
+	c.fileCacheMu.Lock()
+	if cached, ok := c.importCache[filename]; ok {
+		c.fileCacheMu.Unlock()
+		return cached.imports, cached.err
+	}
+	c.fileCacheMu.Unlock()
+
+	node, _, err := c.getOrParseFile(filename)
 	if err != nil {
+		c.fileCacheMu.Lock()
+		c.importCache[filename] = cachedImports{nil, err}
+		c.fileCacheMu.Unlock()
 		return nil, err
 	}
 
@@ -56,6 +66,11 @@ func (c *ParseContext) extractImports(filename string) (map[string]*ImportInfo, 
 			}
 		}
 	}
+
+	// 写入缓存
+	c.fileCacheMu.Lock()
+	c.importCache[filename] = cachedImports{imports, nil}
+	c.fileCacheMu.Unlock()
 
 	return imports, nil
 }

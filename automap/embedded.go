@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/donutnomad/gogen/internal/gormparse"
-	"github.com/donutnomad/gogen/internal/structparse"
 )
 
 // analyzeEmbeddedCompositeLit 分析嵌入字段的结构体字面量
@@ -203,7 +202,7 @@ func (m *Mapper) extractEmbeddedFieldsFromStructparse(group *MappingGroup, embed
 	found := false
 
 	_ = iterator.IterateIncludeCurrent(func(filePath string) bool {
-		structInfo, err := structparse.ParseStruct(filePath, embeddedTypeName)
+		structInfo, err := m.parseCtx.ParseStruct(filePath, embeddedTypeName)
 		if err != nil {
 			return true // 继续遍历
 		}
@@ -244,7 +243,7 @@ func (m *Mapper) extractEmbeddedFieldsFromPOStruct(group *MappingGroup, embedded
 	iterator := NewGoFileIterator(m.filePath)
 
 	_ = iterator.IterateIncludeCurrent(func(filePath string) bool {
-		structInfo, err := structparse.ParseStruct(filePath, m.receiverType)
+		structInfo, err := m.parseCtx.ParseStruct(filePath, m.receiverType)
 		if err != nil {
 			return true // 继续遍历
 		}

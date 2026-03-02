@@ -3,7 +3,6 @@ package structparse
 import (
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"path/filepath"
 	"strings"
@@ -32,8 +31,7 @@ func (c *ParseContext) parseStructWithStackAndImports(filename, structName strin
 
 // parseStructWithStackAndImportsAndBaseDir 带栈、导入信息和基础目录的结构体解析
 func (c *ParseContext) parseStructWithStackAndImportsAndBaseDir(filename, structName string, stack map[string]bool, imports map[string]*ImportInfo, baseDir string) (*StructInfo, error) {
-	fset := token.NewFileSet()
-	node, err := parser.ParseFile(fset, filename, nil, parser.ParseComments)
+	node, _, err := c.getOrParseFile(filename)
 	if err != nil {
 		return nil, fmt.Errorf("解析文件失败: %w", err)
 	}
@@ -89,7 +87,7 @@ func (c *ParseContext) parseStructWithStackAndImportsAndBaseDir(filename, struct
 	structInfo.Fields = fields
 
 	// 解析方法信息 - 需要搜索整个包中的所有文件
-	methods, err := parseMethodsFromPackage(filename, structName)
+	methods, err := c.parseMethodsFromPackage(filename, structName)
 	if err != nil {
 		return nil, err
 	}

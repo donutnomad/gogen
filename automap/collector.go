@@ -3,7 +3,6 @@ package automap
 import (
 	"fmt"
 	"go/ast"
-	"go/parser"
 	"go/token"
 	"reflect"
 	"slices"
@@ -22,7 +21,7 @@ func (m *Mapper) collectTypeSpecs() {
 	// 然后扫描同目录下的其他Go文件
 	iterator := NewGoFileIterator(m.filePath)
 	_ = iterator.Iterate(func(fullPath string) bool {
-		otherFile, err := parser.ParseFile(m.fset, fullPath, nil, parser.ParseComments)
+		otherFile, _, err := m.parseCtx.ASTCache.GetOrParse(fullPath)
 		if err != nil {
 			if DebugMode {
 				fmt.Printf("[DEBUG] Failed to parse file %s: %v\n", fullPath, err)
@@ -177,8 +176,7 @@ func (m *Mapper) processValueSpec(spec *ast.ValueSpec) {
 // collectTargetColumns 收集目标类型（PO）的所有数据库列名
 func (m *Mapper) collectTargetColumns() {
 	// 使用 structparse 解析目标类型，它能正确处理外部包的嵌入类型
-	// 首先尝试在当前文件中查找
-	structInfo, err := structparse.ParseStruct(m.filePath, m.receiverType)
+	structInfo, err := m.parseCtx.ParseStruct(m.filePath, m.receiverType)
 	if err != nil {
 		if DebugMode {
 			fmt.Printf("[DEBUG] structparse.ParseStruct failed for %s in %s: %v\n", m.receiverType, m.filePath, err)
@@ -227,7 +225,7 @@ func (m *Mapper) findStructInSameDirectory() (*structparse.StructInfo, error) {
 
 	iterator := NewGoFileIterator(m.filePath)
 	_ = iterator.Iterate(func(filePath string) bool {
-		structInfo, err := structparse.ParseStruct(filePath, m.receiverType)
+		structInfo, err := m.parseCtx.ParseStruct(filePath, m.receiverType)
 		if err == nil {
 			if DebugMode {
 				fmt.Printf("[DEBUG] Found struct %s in file: %s\n", m.receiverType, filePath)

@@ -13,7 +13,6 @@ import (
 	"github.com/donutnomad/gg"
 	"github.com/donutnomad/gogen/automap"
 	"github.com/donutnomad/gogen/internal/gormparse"
-	"github.com/donutnomad/gogen/internal/structparse"
 	"github.com/donutnomad/gogen/plugin"
 )
 
@@ -44,6 +43,64 @@ func NewSetterGenerator() *SetterGenerator {
 	return gen
 }
 
+// generateCache 生成过程中的缓存
+type generateCache struct {
+	// 共享的 gormparse 解析上下文（内部包含 structparse + 文件 AST 缓存）
+	gormCtx *gormparse.ParseContext
+
+	// gormparse 结果缓存: "filePath:structName" -> result
+	gormCache    map[string]*gormparse.GormModelInfo
+	gormCacheErr map[string]error
+
+	// 目录方法缓存: dir -> []methodInfo
+	dirMethodCache map[string][]methodInfo
+
+	// automap 共享解析上下文: dir -> *automap.ParseContext2
+	automapCtxCache map[string]*automap.ParseContext2
+}
+
+func newGenerateCache() *generateCache {
+	return &generateCache{
+		gormCtx:         gormparse.NewParseContext(),
+		gormCache:       make(map[string]*gormparse.GormModelInfo),
+		gormCacheErr:    make(map[string]error),
+		dirMethodCache:  make(map[string][]methodInfo),
+		automapCtxCache: make(map[string]*automap.ParseContext2),
+	}
+}
+
+// parseGormModel 带缓存的 GORM 模型解析
+func (c *generateCache) parseGormModel(filePath, structName string) (*gormparse.GormModelInfo, error) {
+	key := filePath + ":" + structName
+	if info, ok := c.gormCache[key]; ok {
+		return info, c.gormCacheErr[key]
+	}
+	model, err := c.gormCtx.ParseGormModel(filePath, structName)
+	c.gormCache[key] = model
+	c.gormCacheErr[key] = err
+	return model, err
+}
+
+// getDirMethods 带缓存的目录方法解析
+func (c *generateCache) getDirMethods(dir string) []methodInfo {
+	if methods, ok := c.dirMethodCache[dir]; ok {
+		return methods
+	}
+	methods := parseDirMethods(dir)
+	c.dirMethodCache[dir] = methods
+	return methods
+}
+
+// getAutomapCtx 获取或创建目录级别的 automap 解析上下文
+func (c *generateCache) getAutomapCtx(dir string) *automap.ParseContext2 {
+	if ctx, ok := c.automapCtxCache[dir]; ok {
+		return ctx
+	}
+	ctx := automap.NewParseContext2()
+	c.automapCtxCache[dir] = ctx
+	return ctx
+}
+
 // Generate 执行代码生成
 func (g *SetterGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.GenerateResult, error) {
 	result := plugin.NewGenerateResult()
@@ -51,6 +108,8 @@ func (g *SetterGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.Generat
 	if len(ctx.Targets) == 0 {
 		return result, nil
 	}
+
+	cache := newGenerateCache()
 
 	// 按输出文件分组处理
 	// key: 输出路径, value: 待处理的目标列表
@@ -83,17 +142,10 @@ func (g *SetterGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.Generat
 			continue
 		}
 
-		// 解析结构体
-		structInfo, err := structparse.ParseStruct(at.Target.FilePath, at.Target.Name)
+		// 解析结构体（使用缓存）
+		gormModel, err := cache.parseGormModel(at.Target.FilePath, at.Target.Name)
 		if err != nil {
-			result.AddError(fmt.Errorf("解析结构体 %s 失败: %w", at.Target.Name, err))
-			continue
-		}
-
-		// 转换为 GORM 模型（用于获取字段信息）
-		gormModel, err := gormparse.ParseGormModel(structInfo)
-		if err != nil {
-			result.AddError(fmt.Errorf("解析模型失败: %w", err))
+			result.AddError(fmt.Errorf("解析模型 %s 失败: %w", at.Target.Name, err))
 			continue
 		}
 
@@ -102,11 +154,12 @@ func (g *SetterGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.Generat
 		fileConfig := ctx.GetFileConfig(at.Target.FilePath)
 		outputPath := plugin.GetOutputPath(at.Target, ann, "$FILE_setter.go", fileConfig, g.Name(), ctx.DefaultOutput)
 
-		// 收集 mapper 方法信息
+		// 收集 mapper 方法信息（使用缓存）
 		var mapperMethod *[2]string
 		patchModeForMapper := strings.ToLower(params.Patch)
 		if patchModeForMapper == "v2" {
-			mapperMethod = g.processPatchMapper(filepath.Dir(at.Target.FilePath), at.Target.Name, &params)
+			dir := filepath.Dir(at.Target.FilePath)
+			mapperMethod = g.processPatchMapperCached(cache, dir, at.Target.Name, &params)
 		}
 
 		fileTargets[outputPath] = append(fileTargets[outputPath], &targetInfo{
@@ -118,6 +171,9 @@ func (g *SetterGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.Generat
 		if ctx.Verbose {
 			fmt.Printf("[settergen] 处理结构体 %s -> %s\n", at.Target.Name, outputPath)
 		}
+	}
+	if ctx.Verbose {
+		fmt.Printf("[settergen] 阶段1(解析+收集) 完成\n")
 	}
 
 	// 为每个输出文件生成 gg 定义
@@ -140,7 +196,7 @@ func (g *SetterGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.Generat
 				fmt.Printf("[settergen] %s", spew.Sdump(item.params))
 			}
 		}
-		gen, err := g.generateDefinition(targets)
+		gen, err := g.generateDefinitionCached(cache, targets)
 		if err != nil {
 			result.AddError(fmt.Errorf("生成 %s 失败: %w", outputPath, err))
 			continue
@@ -158,8 +214,8 @@ type targetInfo struct {
 	mapperMethod *[2]string
 }
 
-// generateDefinition 为一组目标生成 gg 定义
-func (g *SetterGenerator) generateDefinition(targets []*targetInfo) (*gg.Generator, error) {
+// generateDefinitionCached 为一组目标生成 gg 定义（使用缓存）
+func (g *SetterGenerator) generateDefinitionCached(cache *generateCache, targets []*targetInfo) (*gg.Generator, error) {
 	if len(targets) == 0 {
 		return nil, fmt.Errorf("没有目标需要生成")
 	}
@@ -196,9 +252,12 @@ func (g *SetterGenerator) generateDefinition(targets []*targetInfo) (*gg.Generat
 			patchMode = strings.TrimSpace(patchMode)
 			switch patchMode {
 			case "v2":
-				// 使用 automap 生成 ToPatch 方法
+				// 使用 automap 生成 ToPatch 方法（使用共享缓存）
 				if t.mapperMethod != nil {
-					_, code, imports, err := automap.Generate2WithOptions((*t.mapperMethod)[0], "ToPatch", automap.WithFileContext((*t.mapperMethod)[1]))
+					fileCtx := (*t.mapperMethod)[1]
+					dir := filepath.Dir(fileCtx)
+					automapCtx := cache.getAutomapCtx(dir)
+					_, code, imports, err := automap.Generate2WithCache((*t.mapperMethod)[0], "ToPatch", automapCtx, automap.WithFileContext(fileCtx))
 					if err != nil {
 						return nil, fmt.Errorf("生成 ToPatch 代码失败: %w", err)
 					}
@@ -228,14 +287,15 @@ func (g *SetterGenerator) generateDefinition(targets []*targetInfo) (*gg.Generat
 	return gen, nil
 }
 
-// processPatchMapper 处理 patch_mapper 参数
-// structName: 当前处理的结构体名称，用于查找该结构体的 mapper 方法
-func (g *SetterGenerator) processPatchMapper(fileDir string, structName string, params *SetterParams) *[2]string {
+// processPatchMapperCached 使用缓存处理 patch_mapper 参数
+func (g *SetterGenerator) processPatchMapperCached(cache *generateCache, fileDir string, structName string, params *SetterParams) *[2]string {
 	patchMapper := params.PatchMapper
 
-	// 如果只是方法名（不含"."），在目录中查找该结构体的方法
+	methods := cache.getDirMethods(fileDir)
+
+	// 如果只是方法名（不含"."），查找该结构体的方法
 	if !strings.Contains(patchMapper, ".") {
-		method, found := findMethodInDirectory(fileDir, structName, patchMapper)
+		method, found := findMethodInList(methods, structName, patchMapper)
 		if !found {
 			fmt.Printf("[settergen] 警告: 结构体 %s 在目录 %s 中未找到方法 %s\n", structName, fileDir, patchMapper)
 			return nil
@@ -254,8 +314,7 @@ func (g *SetterGenerator) processPatchMapper(fileDir string, structName string, 
 	}
 	targetStructName, methodName := parts[0], parts[1]
 
-	// 在目录中查找指定结构体的方法
-	method, found := findMethodInDirectory(fileDir, targetStructName, methodName)
+	method, found := findMethodInList(methods, targetStructName, methodName)
 	if !found {
 		fmt.Printf("[settergen] 警告: 未找到方法 %s.%s\n", targetStructName, methodName)
 		return nil
@@ -274,28 +333,31 @@ type methodInfo struct {
 	FilePath     string
 }
 
-// findMethodInDirectory 在目录中查找指定结构体的方法
-func findMethodInDirectory(dir, structName, methodName string) (methodInfo, bool) {
+// findMethodInList 从已缓存的方法列表中查找方法
+func findMethodInList(methods []methodInfo, structName, methodName string) (methodInfo, bool) {
+	for _, method := range methods {
+		if method.Name == methodName && trimPtr(method.ReceiverType) == structName {
+			return method, true
+		}
+	}
+	return methodInfo{}, false
+}
+
+// parseDirMethods 解析目录中所有 .go 文件的全部方法（一次性）
+func parseDirMethods(dir string) []methodInfo {
 	files, err := filepath.Glob(filepath.Join(dir, "*.go"))
 	if err != nil {
-		return methodInfo{}, false
+		return nil
 	}
 
+	var allMethods []methodInfo
 	for _, filePath := range files {
-		// 跳过测试文件
 		if strings.HasSuffix(filePath, "_test.go") {
 			continue
 		}
-
-		methods := parseAllMethodsFromFile(filePath)
-		for _, method := range methods {
-			if method.Name == methodName && trimPtr(method.ReceiverType) == structName {
-				return method, true
-			}
-		}
+		allMethods = append(allMethods, parseAllMethodsFromFile(filePath)...)
 	}
-
-	return methodInfo{}, false
+	return allMethods
 }
 
 // parseAllMethodsFromFile 从文件中解析所有方法

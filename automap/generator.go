@@ -405,6 +405,15 @@ func Generate2(filePath, receiverType, funcName, genFuncName string) (string, st
 // genFuncName: 生成的函数名（如 "ToPatch"）
 // options: 选项，支持 WithFileContext
 func Generate2WithOptions(funcNameWithReceiver, genFuncName string, options ...Option) (string, string, []ImportWithAlias, error) {
+	return generate2WithOptionsInternal(funcNameWithReceiver, genFuncName, nil, options...)
+}
+
+// Generate2WithCache 使用新方案生成代码（带缓存）
+func Generate2WithCache(funcNameWithReceiver, genFuncName string, ctx *ParseContext2, options ...Option) (string, string, []ImportWithAlias, error) {
+	return generate2WithOptionsInternal(funcNameWithReceiver, genFuncName, ctx, options...)
+}
+
+func generate2WithOptionsInternal(funcNameWithReceiver, genFuncName string, ctx *ParseContext2, options ...Option) (string, string, []ImportWithAlias, error) {
 	// 解析函数名格式
 	parts := strings.Split(funcNameWithReceiver, ".")
 	if len(parts) != 2 {
@@ -424,5 +433,21 @@ func Generate2WithOptions(funcNameWithReceiver, genFuncName string, options ...O
 		return "", "", nil, fmt.Errorf("需要通过 WithFileContext 指定文件路径")
 	}
 
-	return Generate2(filePath, receiverType, funcName, genFuncName)
+	// 使用带缓存或无缓存的解析
+	var result *ParseResult2
+	var err error
+	if ctx != nil {
+		result, err = ParseWithCache(filePath, receiverType, funcName, ctx)
+	} else {
+		result, err = Parse(filePath, receiverType, funcName)
+	}
+	if err != nil {
+		return "", "", nil, fmt.Errorf("解析失败: %w", err)
+	}
+
+	// 生成代码
+	generator := NewGenerator2(result, genFuncName)
+	fullCode, funcCode, imports := generator.Generate()
+
+	return fullCode, funcCode, imports, nil
 }
