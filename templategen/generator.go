@@ -68,8 +68,16 @@ func (g *TemplateGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.Gener
 		fileTargets[target.Target.FilePath] = append(fileTargets[target.Target.FilePath], target)
 	}
 
+	// 按文件路径排序，确保生成顺序一致
+	filePaths := make([]string, 0, len(fileTargets))
+	for filePath := range fileTargets {
+		filePaths = append(filePaths, filePath)
+	}
+	slices.Sort(filePaths)
+
 	// 处理每个文件
-	for filePath, targets := range fileTargets {
+	for _, filePath := range filePaths {
+		targets := fileTargets[filePath]
 		// 解析文件的 go:gogen: plugin:templategen 配置
 		configs, err := parseTemplateConfigs(filePath)
 		if err != nil {
