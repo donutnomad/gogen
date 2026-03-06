@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## 重要
+- 禁止向/tmp中写入代码进行执行和测试
+- **禁止直接遍历 map 来做任何依赖顺序的操作**（Go map 遍历顺序是随机的）。必须先提取 keys 到 slice 并排序，再按排序后的 keys 遍历。尤其在代码生成场景中，直接 `for k, v := range myMap` 会导致输出顺序不稳定。
+
 ## 项目概述
 
 gogen 是一个基于注解的 Go 代码生成工具集，通过扫描 Go 源文件中的注解自动生成相关代码。

@@ -77,6 +77,13 @@ func (r *PackageNameResolver) resolveDiskPath(importPath string) (string, error)
 			relativePath = strings.TrimPrefix(relativePath, "/")
 			return filepath.Join(r.projectRoot, relativePath), nil
 		}
+
+		// 检查 go.work workspace 中的其他模块
+		if goWorkDir := findGoWorkFile(r.projectRoot); goWorkDir != "" {
+			if packagePath, err := findPackageInWorkspace(goWorkDir, importPath); err == nil {
+				return packagePath, nil
+			}
+		}
 	}
 
 	// 第三方包：查找 GOMODCACHE
