@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/donutnomad/gogen/internal/pkgresolver"
 )
 
 // findStructInPackageWithImportsAndBaseDir 在指定包中查找结构体定义，使用导入信息和基础目录
@@ -63,8 +65,8 @@ func findPackagePathByImport(projectRoot, importPath string) (string, error) {
 	}
 
 	// 检查 go.work workspace 中的其他模块
-	if goWorkDir := findGoWorkFile(projectRoot); goWorkDir != "" {
-		if packagePath, err := findPackageInWorkspace(goWorkDir, importPath); err == nil {
+	if goWorkDir := pkgresolver.FindGoWorkFile(projectRoot); goWorkDir != "" {
+		if packagePath, err := pkgresolver.FindPackageInWorkspace(goWorkDir, importPath); err == nil {
 			return packagePath, nil
 		}
 	}
@@ -166,109 +168,6 @@ func encodeModulePath(path string) string {
 		}
 	}
 	return result.String()
-}
-
-// findGoWorkFile 从 go.mod 所在目录继续向上查找 go.work 文件
-func findGoWorkFile(projectRoot string) string {
-	// 从 projectRoot（go.mod 所在目录）的父目录开始向上查找
-	dir := filepath.Dir(projectRoot)
-	for {
-		goWorkPath := filepath.Join(dir, "go.work")
-		if _, err := os.Stat(goWorkPath); err == nil {
-			return dir
-		}
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			break
-		}
-		dir = parent
-	}
-	return ""
-}
-
-// findPackageInWorkspace 解析 go.work 中的 use 指令，查找 importPath 所属的 workspace 模块
-func findPackageInWorkspace(goWorkDir, importPath string) (string, error) {
-	goWorkPath := filepath.Join(goWorkDir, "go.work")
-	content, err := os.ReadFile(goWorkPath)
-	if err != nil {
-		return "", fmt.Errorf("无法读取 go.work: %v", err)
-	}
-
-	// 解析 use 指令中的相对路径
-	useDirs := parseGoWorkUseDirs(string(content))
-
-	for _, useDir := range useDirs {
-		// 拼接为绝对路径
-		absDir := useDir
-		if !filepath.IsAbs(useDir) {
-			absDir = filepath.Join(goWorkDir, useDir)
-		}
-
-		// 读取该目录的 go.mod 获取 module name
-		moduleName, err := getModuleName(absDir)
-		if err != nil {
-			continue
-		}
-
-		// 检查 importPath 是否属于该模块
-		if importPath == moduleName || strings.HasPrefix(importPath, moduleName+"/") {
-			relativePath := strings.TrimPrefix(importPath, moduleName)
-			relativePath = strings.TrimPrefix(relativePath, "/")
-			packagePath := filepath.Join(absDir, relativePath)
-
-			if _, err := os.Stat(packagePath); err == nil {
-				return packagePath, nil
-			}
-		}
-	}
-
-	return "", fmt.Errorf("未在 go.work workspace 中找到包 %s", importPath)
-}
-
-// parseGoWorkUseDirs 解析 go.work 文件内容，提取所有 use 指令中的目录路径
-func parseGoWorkUseDirs(content string) []string {
-	var dirs []string
-	lines := strings.Split(content, "\n")
-	inUseBlock := false
-
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-
-		// 跳过空行和注释
-		if line == "" || strings.HasPrefix(line, "//") {
-			continue
-		}
-
-		// 处理 use ( ... ) 块
-		if strings.HasPrefix(line, "use") && strings.Contains(line, "(") {
-			inUseBlock = true
-			// 检查是否在同一行有路径（use ( ./app ）这种不太常见但可能存在）
-			continue
-		}
-
-		if inUseBlock {
-			if strings.Contains(line, ")") {
-				inUseBlock = false
-				continue
-			}
-			// 块内的每一行是一个目录路径
-			dir := strings.TrimSpace(line)
-			if dir != "" {
-				dirs = append(dirs, dir)
-			}
-			continue
-		}
-
-		// 处理单行 use 指令：use ./app
-		if strings.HasPrefix(line, "use ") {
-			dir := strings.TrimSpace(strings.TrimPrefix(line, "use"))
-			if dir != "" && dir != "(" {
-				dirs = append(dirs, dir)
-			}
-		}
-	}
-
-	return dirs
 }
 
 // getModuleName 从go.mod文件获取模块名称

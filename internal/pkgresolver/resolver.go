@@ -79,8 +79,8 @@ func (r *PackageNameResolver) resolveDiskPath(importPath string) (string, error)
 		}
 
 		// 检查 go.work workspace 中的其他模块
-		if goWorkDir := findGoWorkFile(r.projectRoot); goWorkDir != "" {
-			if packagePath, err := findPackageInWorkspace(goWorkDir, importPath); err == nil {
+		if goWorkDir := FindGoWorkFile(r.projectRoot); goWorkDir != "" {
+			if packagePath, err := FindPackageInWorkspace(goWorkDir, importPath); err == nil {
 				return packagePath, nil
 			}
 		}

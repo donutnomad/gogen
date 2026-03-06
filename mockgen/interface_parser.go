@@ -314,7 +314,14 @@ func (p *interfaceParser) findPackagePath(importPath string) (string, error) {
 		}
 	}
 
-	// 3. 第三方包：从 Go 模块缓存中查找
+	// 3. 检查 go.work workspace 中的其他模块
+	if goWorkDir := pkgresolver.FindGoWorkFile(p.projectRoot); goWorkDir != "" {
+		if packagePath, err := pkgresolver.FindPackageInWorkspace(goWorkDir, importPath); err == nil {
+			return packagePath, nil
+		}
+	}
+
+	// 4. 第三方包：从 Go 模块缓存中查找
 	return structparse.FindThirdPartyPackage(importPath)
 }
 
