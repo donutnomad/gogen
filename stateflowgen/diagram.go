@@ -181,13 +181,17 @@ func (r *DiagramRenderer) Render() string {
 	}
 
 	visited := make(map[string]bool)
-	lines, _ := r.renderFlow(root, visited)
+	// expanded 是全局集合（不随分支复制），记录已被完整展开过的节点。
+	// 一个节点一旦被展开过，后续在其他分支中遇到时直接标记为回环（🔁），
+	// 防止间接环路（如 A→B→C→A）导致指数级重复展开。
+	expanded := make(map[string]bool)
+	lines, _ := r.renderFlow(root, visited, expanded)
 	return strings.Join(lines, "\n")
 }
 
-func (r *DiagramRenderer) renderFlow(state string, visited map[string]bool) ([]string, int) {
-	// Check loop
-	if visited[state] {
+func (r *DiagramRenderer) renderFlow(state string, visited map[string]bool, expanded map[string]bool) ([]string, int) {
+	// Check direct loop (same path) or already expanded in another branch
+	if visited[state] || expanded[state] {
 		content := state
 		if n, ok := r.nodes.Get(state); ok {
 			content = n.Content
@@ -206,16 +210,17 @@ func (r *DiagramRenderer) renderFlow(state string, visited map[string]bool) ([]s
 	}
 
 	visited[state] = true
+	expanded[state] = true
 
 	if len(edges) == 1 {
-		return r.renderSingleTarget(state, edges[0], visited)
+		return r.renderSingleTarget(state, edges[0], visited, expanded)
 	}
 
-	return r.renderBranches(state, edges, visited)
+	return r.renderBranches(state, edges, visited, expanded)
 }
 
-func (r *DiagramRenderer) renderSingleTarget(state string, edge Edge, visited map[string]bool) ([]string, int) {
-	subLines, subAnchor := r.renderFlow(edge.To, copyVisited(visited))
+func (r *DiagramRenderer) renderSingleTarget(state string, edge Edge, visited map[string]bool, expanded map[string]bool) ([]string, int) {
+	subLines, subAnchor := r.renderFlow(edge.To, copyVisited(visited), expanded)
 
 	nodeContent := state
 	if n, ok := r.nodes.Get(state); ok {
@@ -249,12 +254,12 @@ type branchInfo struct {
 	edgeLabel   string
 }
 
-func (r *DiagramRenderer) renderBranches(state string, edges []Edge, visited map[string]bool) ([]string, int) {
+func (r *DiagramRenderer) renderBranches(state string, edges []Edge, visited map[string]bool, expanded map[string]bool) ([]string, int) {
 	if len(edges) == 0 {
 		return nil, 0
 	}
 
-	branches := r.collectBranches(edges, visited)
+	branches := r.collectBranches(edges, visited, expanded)
 	r.applyInnerPadding(branches)
 	allLines := r.buildRenderLines(branches)
 	centerLineIndex := r.findCenterLine(allLines, len(branches))
@@ -262,10 +267,10 @@ func (r *DiagramRenderer) renderBranches(state string, edges []Edge, visited map
 	return r.formatBranchOutput(state, allLines, centerLineIndex, branches), centerLineIndex
 }
 
-func (r *DiagramRenderer) collectBranches(edges []Edge, visited map[string]bool) []branchInfo {
+func (r *DiagramRenderer) collectBranches(edges []Edge, visited map[string]bool, expanded map[string]bool) []branchInfo {
 	var branches []branchInfo
 	for _, edge := range edges {
-		lines, anchor := r.renderFlow(edge.To, copyVisited(visited))
+		lines, anchor := r.renderFlow(edge.To, copyVisited(visited), expanded)
 		branches = append(branches, branchInfo{
 			lines:       lines,
 			anchor:      anchor,

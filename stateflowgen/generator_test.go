@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/donutnomad/gogen/plugin"
@@ -102,5 +103,74 @@ func TestScannerIntegration(t *testing.T) {
 
 	if len(result.Consts) == 0 {
 		t.Error("Expected at least one const target with StateFlow annotation")
+	}
+}
+
+// TestSelfTransitionDiagramSize 测试自环转换生成的图不会指数爆炸
+func TestSelfTransitionDiagramSize(t *testing.T) {
+	text := `
+@StateFlow(output=types_state.go)
+@Flow: none => [ active? via creating else rejected ]
+@Flow: active => [ inactive? via updating, (=)? via updating ]
+@Flow: inactive => [ active? via updating, (=)? via updating ]
+`
+	config, rules, err := ParseFlowAnnotations(text)
+	if err != nil {
+		t.Fatalf("Parse error: %v", err)
+	}
+
+	model, err := BuildModel(config, rules)
+	if err != nil {
+		t.Fatalf("Build model error: %v", err)
+	}
+
+	t.Logf("Transitions: %d", len(model.Transitions))
+	for i, tr := range model.Transitions {
+		t.Logf("  [%d] %s -> %s (via=%s, fallback=%s, optional=%v)", i, tr.From, tr.To, tr.Via, tr.Fallback, tr.ApprovalOptional)
+	}
+
+	cg := NewCodeGenerator(model, "automation")
+	gen, err := cg.Generate()
+	if err != nil {
+		t.Fatalf("Generate error: %v", err)
+	}
+
+	output := gen.String()
+	lines := strings.Split(output, "\n")
+
+	// 统计 Flowchart 部分的行数
+	chartLines := 0
+	inChart := false
+	for _, line := range lines {
+		if strings.Contains(line, "/* Flowchart:") {
+			inChart = true
+		}
+		if inChart {
+			chartLines++
+			if strings.Contains(line, "*/") {
+				break
+			}
+		}
+	}
+
+	t.Logf("Flowchart: %d lines, total output: %d lines", chartLines, len(lines))
+
+	// 打印 Flowchart 部分
+	inChart = false
+	for _, line := range lines {
+		if strings.Contains(line, "/* Flowchart:") {
+			inChart = true
+		}
+		if inChart {
+			t.Log(line)
+			if strings.Contains(line, "*/") {
+				break
+			}
+		}
+	}
+
+	// 修复前是 1400+ 行，修复后应该在 100 行以内
+	if chartLines > 100 {
+		t.Errorf("Flowchart too large: %d lines (expected < 100), likely infinite recursion", chartLines)
 	}
 }

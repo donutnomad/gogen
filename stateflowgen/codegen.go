@@ -630,83 +630,75 @@ func (c *CodeGenerator) generateFlowDiagram(group *gg.Group) {
 	renderer := NewDiagramRenderer()
 	renderer.ArrowSymbol = "──"
 
-	// 收集可选审批的状态，用于自定义分支符号
+	// 收集有出边的状态（用于判断 REJECT 叶子是否标记 🔁）
+	hasOutTransition := make(map[string]bool)
+	for _, trans := range c.model.Transitions {
+		hasOutTransition[c.formatStage(trans.From)] = true
+	}
+
 	for _, trans := range c.model.Transitions {
 		fromStr := c.formatStage(trans.From)
 		toStr := c.formatStage(trans.To)
 
 		if trans.ApprovalOptional && trans.Via.Phase != "" {
 			// 可选审批：创建中间判别节点
-			// from ──▶ 🔶<APPROVAL?> ──┬──▶ via (via) ──┬── <COMMIT> ──▶ to
-			//                          │                └── <REJECT> ──▶ fallback
-			//                          │
-			//                          └──▶ to (直接)
+			// from ──▶ <?APPROVAL?> ──┬──▶ via (via) ──┬── <COMMIT> ──▶ to
+			//                         │                └── <REJECT> ──▶ fallback
+			//                         └──▶ to (直接)
 			viaStr := c.formatStage(trans.Via)
 			fallbackStr := c.formatStage(trans.Fallback)
 
-			// 创建中间判别节点
+			// 同一 from 共用一个 decision 节点
 			decisionNode := fromStr + "_decision"
 			renderer.AddNode(decisionNode, "<?APPROVAL?>")
 			renderer.AddEdge(fromStr, decisionNode, "──▶ ")
 
-			// 1. 审批路径：decision -> via -> (Commit/Reject)
-			// 如果 via 和 from 相同，使用 shadow 名字避免冲突
-			viaNodeID := viaStr
-			if viaStr == fromStr {
-				viaNodeID = viaStr + "_via"
-			}
+			// 每个 (from, to) 独立的 via 节点，避免不同转换的边混在一起
+			viaNodeID := fmt.Sprintf("%s_%s_%s_via", fromStr, toStr, viaStr)
 			renderer.AddNode(viaNodeID, viaStr+" (via)")
 			renderer.AddEdge(decisionNode, viaNodeID, "──▶ ")
 
-			// via 分叉出 Commit 和 Reject
+			// COMMIT → 真实目标状态节点（由渲染器 expanded 控制是否展开）
 			if toStr != "" {
 				renderer.AddEdge(viaNodeID, toStr, "── <COMMIT> ──▶ ")
 			}
+			// REJECT → 独立叶子节点（fallback 通常回到源状态，用叶子避免回环）
 			if fallbackStr != "" {
-				// 如果 fallback 和 from 相同，使用 shadow 节点显示回到原状态
-				if fallbackStr == fromStr {
-					fallbackNodeID := fallbackStr + "_fallback"
-					renderer.AddNode(fallbackNodeID, fallbackStr+" 🔁")
-					renderer.AddEdge(viaNodeID, fallbackNodeID, "── <REJECT> ──▶ ")
-				} else {
-					renderer.AddEdge(viaNodeID, fallbackStr, "── <REJECT> ──▶ ")
+				rejectID := fmt.Sprintf("%s_%s_reject", fromStr, toStr)
+				rejectLabel := fallbackStr
+				if hasOutTransition[fallbackStr] {
+					rejectLabel += " 🔁"
 				}
+				renderer.AddNode(rejectID, rejectLabel)
+				renderer.AddEdge(viaNodeID, rejectID, "── <REJECT> ──▶ ")
 			}
 
-			// 2. 直接路径：decision -> to
+			// 直接路径：decision → 真实目标状态节点
 			renderer.AddEdge(decisionNode, toStr, "──▶ ")
 		} else if trans.Via.Phase != "" {
 			// 必须审批：from -> via -> (Commit/Reject)
-			//                          ┌── <COMMIT> ──▶ to
-			//                          │
-			// from ──▶ via (via) ──┤
-			//                          │
-			//                          └── <REJECT> ──▶ fallback
-
 			viaStr := c.formatStage(trans.Via)
 			toStr := c.formatStage(trans.To)
 			fallbackStr := c.formatStage(trans.Fallback)
 
-			// 为每个 from 创建独立的 via 节点，避免不同转换共用同一个 via 节点
-			viaNodeID := fromStr + "_" + viaStr + "_via"
-
-			// from -> via
+			// 每个 (from, to) 独立的 via 节点
+			viaNodeID := fmt.Sprintf("%s_%s_%s_via", fromStr, toStr, viaStr)
 			renderer.AddNode(viaNodeID, viaStr+" (via)")
 			renderer.AddEdge(fromStr, viaNodeID, "──▶ ")
 
-			// via 分叉出 Commit 和 Reject
+			// COMMIT → 真实目标状态节点
 			if toStr != "" {
 				renderer.AddEdge(viaNodeID, toStr, "── <COMMIT> ──▶ ")
 			}
+			// REJECT → 独立叶子节点
 			if fallbackStr != "" {
-				// 如果 fallback 和 from 相同，使用 shadow 节点
-				if fallbackStr == fromStr {
-					fallbackNodeID := fallbackStr + "_fallback"
-					renderer.AddNode(fallbackNodeID, fallbackStr+" 🔁")
-					renderer.AddEdge(viaNodeID, fallbackNodeID, "── <REJECT> ──▶ ")
-				} else {
-					renderer.AddEdge(viaNodeID, fallbackStr, "── <REJECT> ──▶ ")
+				rejectID := fmt.Sprintf("%s_%s_reject", fromStr, toStr)
+				rejectLabel := fallbackStr
+				if hasOutTransition[fallbackStr] {
+					rejectLabel += " 🔁"
 				}
+				renderer.AddNode(rejectID, rejectLabel)
+				renderer.AddEdge(viaNodeID, rejectID, "── <REJECT> ──▶ ")
 			}
 		} else {
 			// 直接流转

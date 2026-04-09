@@ -566,3 +566,74 @@ func TestDiagramRenderer_DeepWithApproval(t *testing.T) {
 		t.Errorf("Expected:\n%s\n\nGot:\n%s", expected, result)
 	}
 }
+
+// 测试：间接环路不会导致指数级膨胀
+// A ↔ B 通过中间节点形成间接环，深度限制应阻止无限递归
+func TestDiagramRenderer_IndirectCycle(t *testing.T) {
+	renderer := NewDiagramRenderer()
+	// A -> B, A -> C
+	// B -> A (indirect cycle back)
+	// C -> A (indirect cycle back)
+	renderer.AddEdge("A", "B", "--> ")
+	renderer.AddEdge("A", "C", "--> ")
+	renderer.AddEdge("B", "A", "--> ")
+	renderer.AddEdge("C", "A", "--> ")
+
+	result := renderer.Render()
+
+	// 确保输出有限且合理
+	lines := strings.Split(result, "\n")
+	if len(lines) > 50 {
+		t.Errorf("Output too large (%d lines), likely infinite recursion", len(lines))
+	}
+	// 确保包含回环标记
+	if !strings.Contains(result, "🔁") {
+		t.Errorf("Expected loop marker in output, got:\n%s", result)
+	}
+}
+
+// 测试：模拟 stateflowgen 中 active/inactive 自环场景
+func TestDiagramRenderer_SelfTransitionViaApproval(t *testing.T) {
+	renderer := NewDiagramRenderer()
+	renderer.ArrowSymbol = "──"
+
+	// 模拟: active => [ inactive? via updating, (=)? via updating ]
+	// active -> decision -> updating_via -> COMMIT -> inactive
+	//                                    -> COMMIT -> active (self)
+	//                                    -> REJECT -> active (fallback)
+	//                    -> inactive
+	//                    -> active (direct)
+
+	renderer.AddNode("active_decision", "<?APPROVAL?>")
+	renderer.AddEdge("active", "active_decision", "──▶ ")
+
+	renderer.AddNode("active_updating_via", "updating (via)")
+	renderer.AddEdge("active_decision", "active_updating_via", "──▶ ")
+	renderer.AddEdge("active_updating_via", "inactive", "── <COMMIT> ──▶ ")
+	renderer.AddNode("active_fallback", "active 🔁")
+	renderer.AddEdge("active_updating_via", "active_fallback", "── <REJECT> ──▶ ")
+	renderer.AddEdge("active_updating_via", "active", "── <COMMIT> ──▶ ")
+	renderer.AddEdge("active_updating_via", "active_fallback", "── <REJECT> ──▶ ")
+	renderer.AddEdge("active_decision", "active", "──▶ ")
+
+	// inactive has similar transitions back
+	renderer.AddNode("inactive_decision", "<?APPROVAL?>")
+	renderer.AddEdge("inactive", "inactive_decision", "──▶ ")
+	renderer.AddNode("inactive_updating_via", "updating (via)")
+	renderer.AddEdge("inactive_decision", "inactive_updating_via", "──▶ ")
+	renderer.AddEdge("inactive_updating_via", "active", "── <COMMIT> ──▶ ")
+	renderer.AddNode("inactive_fallback", "inactive 🔁")
+	renderer.AddEdge("inactive_updating_via", "inactive_fallback", "── <REJECT> ──▶ ")
+	renderer.AddEdge("inactive_updating_via", "inactive", "── <COMMIT> ──▶ ")
+	renderer.AddEdge("inactive_updating_via", "inactive_fallback", "── <REJECT> ──▶ ")
+	renderer.AddEdge("inactive_decision", "inactive", "──▶ ")
+
+	result := renderer.Render()
+	lines := strings.Split(result, "\n")
+
+	// 关键断言：输出应该有限（不超过100行）
+	if len(lines) > 100 {
+		t.Errorf("Output too large (%d lines), depth limiting failed", len(lines))
+	}
+	t.Logf("Output has %d lines (should be bounded)", len(lines))
+}
