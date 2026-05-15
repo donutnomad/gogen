@@ -223,8 +223,11 @@ func (g *SetterGenerator) generateDefinitionCached(cache *generateCache, targets
 	gen := gg.New()
 	gen.SetPackage(targets[0].model.PackageName)
 
-	// 收集所有 imports（带别名支持）
+	// 收集 setter v1 需要的字段类型 imports。patch=v2 会从 automap 返回自己的 imports。
 	for _, t := range targets {
+		if !parseBoolParam(t.params.Setter) {
+			continue
+		}
 		for _, imp := range getSetterImports(t.model) {
 			if imp.Alias != "" {
 				gen.PAlias(imp.Path, imp.Alias)

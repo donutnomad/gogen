@@ -1,6 +1,9 @@
 package settergen
 
 import (
+	"context"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,6 +11,7 @@ import (
 
 	"github.com/donutnomad/gg"
 	"github.com/donutnomad/gogen/internal/gormparse"
+	"github.com/donutnomad/gogen/plugin"
 )
 
 func TestParseAllMethodsFromFile(t *testing.T) {
@@ -57,6 +61,169 @@ func TestNewSetterGenerator(t *testing.T) {
 	g := NewSetterGenerator()
 	if g == nil {
 		t.Error("NewSetterGenerator() returned nil")
+	}
+}
+
+func TestRunOnlySetterPatchV2WithSingleAliasedImport(t *testing.T) {
+	tmpDir := t.TempDir()
+	goModFile := filepath.Join(tmpDir, "go.mod")
+	goModSource := `module example.com/app
+
+go 1.25
+`
+	if err := os.WriteFile(goModFile, []byte(goModSource), 0644); err != nil {
+		t.Fatalf("failed to write go.mod: %v", err)
+	}
+
+	domainDir := filepath.Join(tmpDir, "emailrouting")
+	if err := os.MkdirAll(domainDir, 0755); err != nil {
+		t.Fatalf("failed to create domain dir: %v", err)
+	}
+	domainFile := filepath.Join(domainDir, "entity.go")
+	domainSource := `package emailrouting
+
+import "time"
+
+type Status string
+
+type ID uint64
+
+type patchField struct{}
+
+func (patchField) IsPresent() bool {
+	return false
+}
+
+type EmailRoutingPatch struct {
+	ID         patchField
+	Email      patchField
+	Type       patchField
+	Status     patchField
+	FailReason patchField
+	CreatedAt  patchField
+	UpdatedAt  patchField
+	DeletedAt  patchField
+}
+
+type EmailRouting struct {
+	ID         ID
+	Email      string
+	Type       string
+	Status     Status
+	FailReason string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	DeletedAt  *time.Time
+}
+
+func (e *EmailRouting) ExportPatch() *EmailRoutingPatch {
+	return &EmailRoutingPatch{}
+}
+`
+	if err := os.WriteFile(domainFile, []byte(domainSource), 0644); err != nil {
+		t.Fatalf("failed to write domain file: %v", err)
+	}
+
+	ormDir := filepath.Join(tmpDir, "orm")
+	if err := os.MkdirAll(ormDir, 0755); err != nil {
+		t.Fatalf("failed to create orm dir: %v", err)
+	}
+	ormFile := filepath.Join(ormDir, "mod.go")
+	ormSource := `package orm
+
+import "time"
+
+type DeletedAt struct{}
+
+type Model struct {
+	DefaultID uint64    ` + "`gorm:\"primaryKey\"`" + `
+	ID        uint64    ` + "`gorm:\"column:id;uniqueIndex\"`" + `
+	CreatedAt time.Time ` + "`gorm:\"column:created_at;index\"`" + `
+	UpdatedAt time.Time ` + "`gorm:\"column:updated_at;index\"`" + `
+	DeletedAt DeletedAt ` + "`gorm:\"index\"`" + `
+}
+`
+	if err := os.WriteFile(ormFile, []byte(ormSource), 0644); err != nil {
+		t.Fatalf("failed to write orm file: %v", err)
+	}
+
+	repoDir := filepath.Join(tmpDir, "repo")
+	if err := os.MkdirAll(repoDir, 0755); err != nil {
+		t.Fatalf("failed to create repo dir: %v", err)
+	}
+
+	modelFile := filepath.Join(repoDir, "email_routing_po.go")
+	modelSource := `package emailroutingrepo
+
+import (
+	"example.com/app/orm"
+	domain "example.com/app/emailrouting"
+)
+
+// EmailRoutingPO
+// @Setter(setter=false, patch=v2)
+type EmailRoutingPO struct {
+	orm.Model
+
+	Email      string        ` + "`gorm:\"column:email\"`" + `
+	Type       string        ` + "`gorm:\"column:type\"`" + `
+	Status     domain.Status ` + "`gorm:\"column:status\"`" + `
+	FailReason string        ` + "`gorm:\"column:fail_reason\"`" + `
+}
+
+func (p *EmailRoutingPO) TableName() string {
+	return "email_routings"
+}
+
+func (p *EmailRoutingPO) ToPO(entity *domain.EmailRouting) *EmailRoutingPO {
+	return &EmailRoutingPO{
+		Model: orm.Model{
+			ID:        uint64(entity.ID),
+			CreatedAt: entity.CreatedAt,
+			UpdatedAt: entity.UpdatedAt,
+		},
+		Email:      entity.Email,
+		Type:       entity.Type,
+		Status:     entity.Status,
+		FailReason: entity.FailReason,
+	}
+}
+`
+	if err := os.WriteFile(modelFile, []byte(modelSource), 0644); err != nil {
+		t.Fatalf("failed to write model file: %v", err)
+	}
+
+	registry := plugin.NewRegistry()
+	if err := registry.Register(NewSetterGenerator()); err != nil {
+		t.Fatalf("failed to register settergen: %v", err)
+	}
+
+	err := plugin.RunWithOptions(context.Background(), &plugin.RunOptions{
+		Registry: registry,
+		Patterns: []string{repoDir},
+		Output:   "generate.go",
+		Async:    false,
+	})
+	if err != nil {
+		t.Fatalf("RunWithOptions failed: %v", err)
+	}
+
+	generatedFile := filepath.Join(repoDir, "generate.go")
+	generated, err := os.ReadFile(generatedFile)
+	if err != nil {
+		t.Fatalf("failed to read generated file: %v", err)
+	}
+
+	if _, err := parser.ParseFile(token.NewFileSet(), generatedFile, generated, parser.ParseComments); err != nil {
+		t.Fatalf("generated file should parse: %v\n%s", err, generated)
+	}
+
+	output := string(generated)
+	if !strings.Contains(output, `domain "example.com/app/emailrouting"`) {
+		t.Fatalf("generated file should keep aliased domain import:\n%s", output)
+	}
+	if !strings.Contains(output, "func (e *EmailRoutingPO) ToPatch(input *domain.EmailRouting) map[string]any") {
+		t.Fatalf("generated file should contain ToPatch with domain input:\n%s", output)
 	}
 }
 
