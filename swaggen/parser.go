@@ -191,12 +191,17 @@ func (p *AnnotationParser) ParseMethodAnnotations(method *ast.FuncDecl) (*Swagge
 	var isDescription = false
 
 	for _, comment := range method.Doc.List {
+		swaggerMethod.RawComments = append(swaggerMethod.RawComments, comment.Text)
 		line := strings.TrimSpace(strings.TrimPrefix(comment.Text, "//"))
 
 		if strings.HasPrefix(line, "@") {
 			isDescription = false
 			parse, err := p.tagsParser.Parse(line)
 			if err != nil {
+				if tagName, ok := unregisteredTagName(err); ok {
+					fmt.Printf("警告: 未注册注解: %s (方法: %s, 原文: %s)\n", tagName, swaggerMethod.Name, line)
+					continue
+				}
 				return nil, NewParseError("method comment parsing failed",
 					fmt.Sprintf("failed to parse comment '%s' in method %s", line, swaggerMethod.Name), err)
 			}
@@ -225,6 +230,17 @@ func (p *AnnotationParser) ParseMethodAnnotations(method *ast.FuncDecl) (*Swagge
 	}
 
 	return swaggerMethod, nil
+}
+
+func unregisteredTagName(err error) (string, bool) {
+	const prefix = "unregistered tag:"
+
+	msg := err.Error()
+	idx := strings.Index(msg, prefix)
+	if idx == -1 {
+		return "", false
+	}
+	return strings.TrimSpace(msg[idx+len(prefix):]), true
 }
 
 // ParseParameterAnnotations 解析参数注释

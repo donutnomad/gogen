@@ -75,6 +75,7 @@ type SwaggerMethod struct {
 	ResponseType TypeInfo    // 返回类型
 	Summary      string      // 摘要
 	Description  string      // 描述
+	RawComments  []string    // 方法原始注释行
 	Def          DefSlice
 }
 
@@ -200,6 +201,7 @@ type SwaggerInterface struct {
 	Methods     []SwaggerMethod      // 方法列表
 	PackagePath string               // 包路径
 	Comments    []string             // 接口注释
+	RawComments []string             // 接口原始注释行
 	Imports     xast.ImportInfoSlice // 导入信息
 	CommonDef   DefSlice
 }

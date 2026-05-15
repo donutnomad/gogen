@@ -253,11 +253,14 @@ func (g *SwagGenerator) parseInterface(at *plugin.AnnotatedTarget) (*SwaggerInte
 	// 解析接口级注释
 	if genDecl := findGenDecl(at.Target.FilePath, at.Target.Name); genDecl != nil && genDecl.Doc != nil {
 		for _, comment := range genDecl.Doc.List {
+			swaggerInterface.RawComments = append(swaggerInterface.RawComments, comment.Text)
 			line := strings.TrimSpace(strings.TrimPrefix(comment.Text, "//"))
 			if strings.HasPrefix(line, "@") {
 				parse, err := tagsParser.Parse(line)
 				if err == nil {
 					swaggerInterface.CommonDef = append(swaggerInterface.CommonDef, parse.(parsers.Definition))
+				} else if tagName, ok := unregisteredTagName(err); ok {
+					fmt.Printf("警告: 未注册注解: %s (接口: %s, 原文: %s)\n", tagName, at.Target.Name, line)
 				}
 			}
 		}

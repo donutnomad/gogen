@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/donutnomad/gogen/internal/utils"
@@ -590,6 +591,8 @@ func (g *GinGenerator) generateMethodBinding(iface SwaggerInterface, method Swag
 	bindMethodName := fmt.Sprintf("Bind%s", method.Name)
 	handlerMethodName := method.Name
 	prefix := iface.CommonDef.GetPrefix()
+	methodCommentLiteral := strconv.Quote(strings.Join(method.RawComments, "\n"))
+	interfaceCommentLiteral := strconv.Quote(strings.Join(iface.RawComments, "\n"))
 
 	ginPaths := lo.Map(method.GetPaths(), func(item string, index int) string {
 		fullPath := prefix + convertPathToGinFormat(item)
@@ -602,7 +605,12 @@ func (g *GinGenerator) generateMethodBinding(iface SwaggerInterface, method Swag
 
 	template := `
 func (a *{{.WrapperName}}) {{.BindMethodName}}(router gin.IRoutes, preHandlers ...gin.HandlerFunc) { {{- range .GinPath}}
-	var handlers []gin.HandlerFunc
+	var handlers = []gin.HandlerFunc{
+		func(c *gin.Context) {
+			c.Set("gormgen:methodcomment", {{$.MethodCommentLiteral}})
+			c.Set("gormgen:interfacecomment", {{$.InterfaceCommentLiteral}})
+		},
+	}
 	if a.handler != nil {
 		handlers = append(handlers, a.handler.PreHandlers()...)
 		{{range $.Handlers}}handlers = append(handlers, a.handler.{{.}}()...)
@@ -618,9 +626,11 @@ func (a *{{.WrapperName}}) {{.BindMethodName}}(router gin.IRoutes, preHandlers .
 		"Handlers": lo.Uniq(lo.Flatten(lo.Map(middlewares, func(item *parsers.MiddleWare, index int) []string {
 			return item.Value
 		}))),
-		"HTTPMethod":        method.GetHTTPMethod(),
-		"GinPath":           ginPaths,
-		"HandlerMethodName": handlerMethodName,
+		"HTTPMethod":              method.GetHTTPMethod(),
+		"GinPath":                 ginPaths,
+		"HandlerMethodName":       handlerMethodName,
+		"MethodCommentLiteral":    methodCommentLiteral,
+		"InterfaceCommentLiteral": interfaceCommentLiteral,
 	}
 	return strings.TrimSpace(utils.MustExecuteTemplate(data, template))
 }
