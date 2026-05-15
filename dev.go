@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strings"
@@ -18,11 +19,16 @@ import (
 
 // DevOptions dev 命令选项
 type DevOptions struct {
-	Patterns []string      // 监听的路径模式
-	Verbose  bool          // 详细输出
-	Output   string        // 默认输出路径
-	Async    bool          // 异步执行
-	Debounce time.Duration // 防抖动时间
+	Patterns        []string      // 监听的路径模式
+	Verbose         bool          // 详细输出
+	Output          string        // 默认输出路径
+	NoOutput        bool          // 禁用默认输出
+	Async           bool          // 异步执行
+	Debounce        time.Duration // 防抖动时间
+	OriginalArgs    []string      // 原始命令参数，用于重启
+	ToolArgs        []string      // 传递给 go tool gogen 的全局参数
+	GenerateCommand func(context.Context, []string) error
+	RestartCommand  func([]string) error
 }
 
 // devRunner 处理文件变动的核心逻辑
@@ -34,8 +40,9 @@ type devRunner struct {
 	ctx      context.Context // 用于响应退出信号
 
 	// 防抖动相关
-	mu          sync.Mutex
-	pendingDirs map[string]*time.Timer // key: 包目录路径
+	mu             sync.Mutex
+	pendingDirs    map[string]*time.Timer // key: 包目录路径
+	restartPending *time.Timer
 }
 
 // runDev 启动开发模式
@@ -57,12 +64,15 @@ func runDev(args []string) {
 	}
 
 	opts := &DevOptions{
-		Patterns: patterns,
-		Verbose:  *verbose,
-		Output:   outputPath,
-		Async:    *async,
-		Debounce: 1 * time.Second,
+		Patterns:     patterns,
+		Verbose:      *verbose,
+		Output:       outputPath,
+		NoOutput:     *noOutput,
+		Async:        *async,
+		Debounce:     1 * time.Second,
+		OriginalArgs: append([]string(nil), os.Args[1:]...),
 	}
+	opts.ToolArgs = buildToolArgs(opts)
 
 	if err := dev(opts); err != nil {
 		fmt.Fprintf(os.Stderr, "错误: %v\n", err)
@@ -109,6 +119,9 @@ func dev(opts *DevOptions) error {
 		for _, timer := range runner.pendingDirs {
 			timer.Stop()
 		}
+		if runner.restartPending != nil {
+			runner.restartPending.Stop()
+		}
 		runner.mu.Unlock()
 	}()
 
@@ -120,6 +133,14 @@ func dev(opts *DevOptions) error {
 
 	if len(dirs) == 0 {
 		return fmt.Errorf("没有找到需要监听的目录")
+	}
+
+	moduleDir, err := moduleRoot()
+	if err != nil {
+		return fmt.Errorf("定位模块根目录失败: %w", err)
+	}
+	if !containsDir(dirs, moduleDir) {
+		dirs = append(dirs, moduleDir)
 	}
 
 	for _, dir := range dirs {
@@ -166,6 +187,11 @@ func (r *devRunner) watchLoop(ctx context.Context) error {
 // handleEvent 处理文件事件
 func (r *devRunner) handleEvent(event fsnotify.Event) {
 	filePath := event.Name
+
+	if isModuleFile(filePath) && event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 {
+		r.scheduleRestart()
+		return
+	}
 
 	// 处理删除事件：从监听列表中移除已删除的目录
 	if event.Op&fsnotify.Remove != 0 {
@@ -273,31 +299,106 @@ func (r *devRunner) scheduleGenerate(pkgDir string) {
 	})
 }
 
+func (r *devRunner) scheduleRestart() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.restartPending != nil {
+		r.restartPending.Stop()
+	}
+
+	r.restartPending = time.AfterFunc(r.opts.Debounce, func() {
+		select {
+		case <-r.ctx.Done():
+			return
+		default:
+		}
+
+		r.restart()
+	})
+}
+
 // runGenerate 执行实际的代码生成
 func (r *devRunner) runGenerate(pkgDir string) {
 	if r.opts.Verbose {
 		fmt.Printf("触发代码生成: %s\n", pkgDir)
 	}
 
-	opts := &plugin.RunOptions{
-		Registry: r.registry,
-		Patterns: []string{pkgDir}, // 只生成变动的包
-		Verbose:  r.opts.Verbose,
-		Output:   r.opts.Output,
-		Async:    r.opts.Async,
-	}
-
-	stats, err := plugin.RunWithOptionsAndStats(r.ctx, opts)
+	args := buildGenerateToolArgs(r.opts, pkgDir)
+	err := runGenerateCommand(r.ctx, r.opts, args)
 	if err != nil {
 		fmt.Printf("生成失败: %v\n", err)
 		return
 	}
 
-	if stats != nil && stats.FileCount > 0 {
-		fmt.Printf("生成完成: %d 个文件 (耗时: %v)\n", stats.FileCount, stats.TotalDuration)
-	} else if r.opts.Verbose {
-		fmt.Printf("生成完成: 无文件生成\n")
+	if r.opts.Verbose {
+		fmt.Printf("生成命令完成: go %s\n", strings.Join(args, " "))
 	}
+}
+
+func (r *devRunner) restart() {
+	args := buildRestartToolArgs(r.opts)
+	fmt.Printf("检测到 go.mod/go.sum 变化，重启: go %s\n", strings.Join(args, " "))
+
+	if err := runRestartCommand(r.opts, args); err != nil {
+		fmt.Printf("重启失败: %v\n", err)
+	}
+}
+
+func buildGenerateToolArgs(opts *DevOptions, pkgDir string) []string {
+	args := []string{"tool", "gogen"}
+	args = append(args, buildToolArgs(opts)...)
+	args = append(args, "gen", pkgDir)
+	return args
+}
+
+func buildRestartToolArgs(opts *DevOptions) []string {
+	args := []string{"tool", "gogen"}
+	args = append(args, opts.OriginalArgs...)
+	return args
+}
+
+func buildToolArgs(opts *DevOptions) []string {
+	if len(opts.ToolArgs) > 0 {
+		return append([]string(nil), opts.ToolArgs...)
+	}
+
+	var args []string
+	if opts.Verbose {
+		args = append(args, "-v")
+	}
+	if opts.NoOutput {
+		args = append(args, "-no-output")
+	} else if opts.Output != "" {
+		args = append(args, "-output", opts.Output)
+	}
+	args = append(args, fmt.Sprintf("-async=%t", opts.Async))
+	return args
+}
+
+func runGenerateCommand(ctx context.Context, opts *DevOptions, args []string) error {
+	if opts.GenerateCommand != nil {
+		return opts.GenerateCommand(ctx, args)
+	}
+
+	cmd := exec.CommandContext(ctx, "go", args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+	return cmd.Run()
+}
+
+func runRestartCommand(opts *DevOptions, args []string) error {
+	if opts.RestartCommand != nil {
+		return opts.RestartCommand(args)
+	}
+
+	goPath, err := exec.LookPath("go")
+	if err != nil {
+		return err
+	}
+
+	return syscall.Exec(goPath, append([]string{"go"}, args...), os.Environ())
 }
 
 // checkSyntax 检查文件语法
@@ -375,6 +476,39 @@ func collectWatchDirs(patterns []string) ([]string, error) {
 	}
 
 	return dirs, nil
+}
+
+func moduleRoot() (string, error) {
+	absDir, err := filepath.Abs(".")
+	if err != nil {
+		return "", err
+	}
+
+	for {
+		if _, err := os.Stat(filepath.Join(absDir, "go.mod")); err == nil {
+			return absDir, nil
+		}
+
+		parent := filepath.Dir(absDir)
+		if parent == absDir {
+			return "", fmt.Errorf("go.mod not found")
+		}
+		absDir = parent
+	}
+}
+
+func containsDir(dirs []string, target string) bool {
+	for _, dir := range dirs {
+		if dir == target {
+			return true
+		}
+	}
+	return false
+}
+
+func isModuleFile(filePath string) bool {
+	base := filepath.Base(filePath)
+	return base == "go.mod" || base == "go.sum"
 }
 
 // isGeneratedFile 检查是否是生成的文件（通过文件名后缀）
