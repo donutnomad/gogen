@@ -4,3 +4,5 @@ gogen
 .gocache
 .trash
 docs/plans
+internal/structparse/testdata/gowork_embedded
+mockgen/testdata/gowork_iface
