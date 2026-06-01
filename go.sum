@@ -70,6 +70,8 @@ github.com/donutnomad/eths v0.2.2 h1:iowtgv5aviXQ0sFz3xFo8Q+NQEVXYoIp4aqkV4E3xTQ
 github.com/donutnomad/eths v0.2.2/go.mod h1:s8UFxWEyD5Lnb9JS91c5V0HIBJrZN/ZoYjMrDwNkxes=
 github.com/donutnomad/eths v0.2.3 h1:VwgEpTrZFGGmRpRDd37s5ziOb/sFR2BnozoyFiZAjM0=
 github.com/donutnomad/eths v0.2.3/go.mod h1:s8UFxWEyD5Lnb9JS91c5V0HIBJrZN/ZoYjMrDwNkxes=
+github.com/donutnomad/eths v0.2.4 h1:OlRtJRjhZZO22QuxDX69VxNpVGqqyD85XAFmviASe1Y=
+github.com/donutnomad/eths v0.2.4/go.mod h1:s8UFxWEyD5Lnb9JS91c5V0HIBJrZN/ZoYjMrDwNkxes=
 github.com/donutnomad/gg v0.0.0-20260110043427-f34493c8cfac h1:NC/7o24o4diPGRtqlqfv0siJRB199P4PbkBH1dyam1A=
 github.com/donutnomad/gg v0.0.0-20260110043427-f34493c8cfac/go.mod h1:La6rTjV7nBUvxx/Ml1iF+7/Q9okPwlUc0pOdkgUGv+k=
 github.com/donutnomad/gsql v0.2.3 h1:dKkHQBipRssqxH0RGzJDlq7TYGK0uuayskyWUBUR6dg=
