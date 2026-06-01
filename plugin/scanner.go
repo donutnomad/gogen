@@ -174,13 +174,13 @@ func (s *Scanner) QuickMatchFile(filePath string) (bool, error) {
 			continue
 		}
 
-		// 检查 go:gogen: 配置（支持 //go:gogen: 和 // go:gogen:）
-		if strings.Contains(trimmed, "go:gogen:") {
+		// 检查 go:gogen 配置或注解
+		if strings.Contains(trimmed, "go:gogen") {
 			return true, nil
 		}
 
-		// 检查 go:gen: 注解（支持 //go:gen: 和 // go:gen:）
-		if strings.Contains(trimmed, "go:gen:") {
+		// 检查历史 go:gen 注解
+		if strings.Contains(trimmed, "go:gen") {
 			return true, nil
 		}
 
@@ -334,10 +334,10 @@ func (s *Scanner) parseFile(filePath string) (result struct {
 
 	packageName := file.Name.Name
 
-	// 解析包级 go:gogen: 配置
+	// 解析包级 go:gogen 配置
 	result.pkgConfig = s.parsePackageConfig(file, filePath)
 
-	// 解析 go:gen: 独立注解
+	// 解析独立注解
 	result.comments = s.parseGoGenComments(fset, file, filePath, packageName)
 
 	for _, decl := range file.Decls {
@@ -604,24 +604,23 @@ func ScanWithFilter(ctx context.Context, annotations []string, patterns ...strin
 	return scanner.Scan(ctx, patterns...)
 }
 
-// goGenRegex 匹配 go:gogen: 指令
-// 支持两种格式：//go:gogen: 和 // go:gogen:
-var goGenRegex = regexp.MustCompile(`go:gogen:\s*(.*)`)
+// goGenRegex 匹配 go:gogen 指令
+// 支持 //go:gogen -output ... 和 legacy //go:gogen: -output ...
+var goGenRegex = regexp.MustCompile(`^go:gogen(?::|\s+)(.*)$`)
 
-// goGenAnnotationRegex 匹配 go:gen: 注解指令
-// 支持两种格式：//go:gen: 和 // go:gen:
-// 与 go:gogen: 不同，go:gen: 用于独立注解而非包级配置
-var goGenAnnotationRegex = regexp.MustCompile(`go:gen:\s*(.*)`)
+// goGenAnnotationRegex 匹配独立注解指令
+// 支持 //go:gogen @Xxx(...) 和 legacy //go:gogen: @Xxx(...)
+var goGenAnnotationRegex = regexp.MustCompile(`^go:(?:gogen|gen)(?::|\s+)\s*(@.*)$`)
 
-// parsePackageConfig 解析包级 go:gogen: 配置
+// parsePackageConfig 解析包级 go:gogen 配置
 // 支持格式:
 //
-//	//go:gogen: -output `$FILE_query`
-//	// go:gogen: plugin:gsql -output `$FILE_query` plugin:setter -output `0api_generated`
+//	//go:gogen -output `$FILE_query`
+//	// go:gogen plugin:gsql -output `$FILE_query` plugin:setter -output `0api_generated`
 func (s *Scanner) parsePackageConfig(file *ast.File, filePath string) *PackageConfig {
 	var gogenLines []string
 
-	// 收集所有 go:gogen: 注释
+	// 收集所有 go:gogen 注释
 	for _, cg := range file.Comments {
 		for _, c := range cg.List {
 			text := strings.TrimPrefix(c.Text, "//")
@@ -630,7 +629,11 @@ func (s *Scanner) parsePackageConfig(file *ast.File, filePath string) *PackageCo
 			text = strings.TrimSpace(text)
 
 			if matches := goGenRegex.FindStringSubmatch(text); len(matches) > 1 {
-				gogenLines = append(gogenLines, matches[1])
+				line := strings.TrimSpace(matches[1])
+				if strings.HasPrefix(line, "@") {
+					continue
+				}
+				gogenLines = append(gogenLines, line)
 			}
 		}
 	}
@@ -639,24 +642,24 @@ func (s *Scanner) parsePackageConfig(file *ast.File, filePath string) *PackageCo
 		return nil
 	}
 
-	// 检查是否有多个 go:gogen: 定义
+	// 检查是否有多个 go:gogen 定义
 	if len(gogenLines) > 1 {
-		fmt.Printf("警告: 文件 %s 定义了多个 go:gogen: 指令，将被忽略\n", filePath)
+		fmt.Printf("警告: 文件 %s 定义了多个 go:gogen 指令，将被忽略\n", filePath)
 		return nil
 	}
 
 	return parseGogenLine(gogenLines[0], filePath)
 }
 
-// parseFileConfig 解析文件级 go:gogen: 配置（已废弃）
+// parseFileConfig 解析文件级 go:gogen 配置（已废弃）
 // Deprecated: 请使用 parsePackageConfig
 func (s *Scanner) parseFileConfig(file *ast.File, filePath string) *PackageConfig {
 	return s.parsePackageConfig(file, filePath)
 }
 
-// parseGoGenComments 解析 go:gen: 独立注解
-// 格式: //go:gen: @Pick(name=xxx, source=`pkg/path.Type`, fields=`[a,b,c]`)
-// 用于引用第三方包的类型
+// parseGoGenComments 解析独立注解
+// 格式: //go:gogen @Pick(name=xxx, source=`pkg/path.Type`, fields=`[a,b,c]`)
+// legacy 格式 //go:gogen: @Pick(...) 和 //go:gen: @Pick(...) 也继续支持
 func (s *Scanner) parseGoGenComments(fset *token.FileSet, file *ast.File, filePath, packageName string) []*AnnotatedTarget {
 	var targets []*AnnotatedTarget
 

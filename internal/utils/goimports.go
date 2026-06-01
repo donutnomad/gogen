@@ -6,6 +6,7 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
+	"path"
 	"strings"
 
 	"golang.org/x/tools/imports"
@@ -61,8 +62,7 @@ func removeUnusedImports(src []byte) []byte {
 			}
 			entries = append(entries, importEntry{spec: imp, pkgName: name})
 		} else {
-			parts := strings.Split(path, "/")
-			entries = append(entries, importEntry{spec: imp, pkgName: parts[len(parts)-1]})
+			entries = append(entries, importEntry{spec: imp, pkgName: packageNameFromImportPath(path)})
 		}
 	}
 
@@ -113,4 +113,27 @@ func removeUnusedImports(src []byte) []byte {
 	}
 
 	return []byte(strings.Join(result, "\n"))
+}
+
+func packageNameFromImportPath(importPath string) string {
+	name := path.Base(importPath)
+	if isMajorVersionPathElement(name) {
+		parent := path.Dir(importPath)
+		if parent != "." && parent != "/" {
+			name = path.Base(parent)
+		}
+	}
+	return name
+}
+
+func isMajorVersionPathElement(name string) bool {
+	if len(name) < 2 || name[0] != 'v' {
+		return false
+	}
+	for _, r := range name[1:] {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return true
 }

@@ -1,7 +1,7 @@
 //go:generate gotoolkit gen .
 
-//go:gogen: plugin:templategen -template ./templates/model.tmpl -output $FILE_model.go
-//go:gogen: plugin:templategen -template ./templates/query.tmpl -output $FILE_query.go
+//go:gogen plugin:templategen -template ./templates/model.tmpl -output $FILE_model.go
+//go:gogen plugin:templategen -template ./templates/query.tmpl -output $FILE_query.go
 
 package multi_template
 

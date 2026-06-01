@@ -1,6 +1,6 @@
 //go:generate gotoolkit gen .
 
-//go:gogen: plugin:templategen -template ./templates/getters.tmpl
+//go:gogen plugin:templategen -template ./templates/getters.tmpl
 
 package basic
 

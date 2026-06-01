@@ -1,4 +1,4 @@
-//go:gogen: plugin:templategen -template ./templates/service.tmpl
+//go:gogen plugin:templategen -template ./templates/service.tmpl
 
 package testdata
 

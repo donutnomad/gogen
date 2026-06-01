@@ -1,6 +1,6 @@
 //go:generate gotoolkit gen .
 
-//go:gogen: plugin:templategen -template ./templates/repository.tmpl
+//go:gogen plugin:templategen -template ./templates/repository.tmpl
 
 package complex_types
 

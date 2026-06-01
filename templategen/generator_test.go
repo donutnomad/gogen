@@ -138,7 +138,7 @@ func TestParseGoGenConfig(t *testing.T) {
 
 	t.Logf("Total comments: %d", len(file.Comments))
 
-	goGenRegex := regexp.MustCompile(`go:gogen:\s*(.*)`)
+	goGenRegex := regexp.MustCompile(`^go:gogen(?::|\s+)(.*)$`)
 
 	for i, cg := range file.Comments {
 		t.Logf("CommentGroup %d:", i)

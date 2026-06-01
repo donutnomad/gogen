@@ -1,6 +1,6 @@
 //go:generate gotoolkit gen .
 
-//go:gogen: plugin:templategen -template ./templates/approval.tmpl -output $FILE_approval_gen.go
+//go:gogen plugin:templategen -template ./templates/approval.tmpl -output $FILE_approval_gen.go
 
 package approvegen
 

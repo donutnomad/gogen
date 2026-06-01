@@ -18,7 +18,7 @@ const (
 	TargetMethod                          // 结构体方法
 	TargetVar                             // 变量声明
 	TargetConst                           // 常量声明
-	TargetComment                         // 独立注释 (//go:gen:)
+	TargetComment                         // 独立注释
 )
 
 func (k TargetKind) String() string {
@@ -88,7 +88,7 @@ type ScanResult struct {
 	Methods    []*AnnotatedTarget // 带注解的方法
 	Vars       []*AnnotatedTarget // 带注解的变量
 	Consts     []*AnnotatedTarget // 带注解的常量
-	Comments   []*AnnotatedTarget // 独立注释 (//go:gen:)
+	Comments   []*AnnotatedTarget // 独立注释
 
 	// PackageConfigs 包级配置
 	// key: 包目录路径（绝对路径）
@@ -167,21 +167,21 @@ type GenerateResult struct {
 }
 
 // PackageConfig 包级生成配置
-// 通过 //go:gogen: 或 // go:gogen: 注释定义，作用于整个包
+// 通过 //go:gogen 注释定义，作用于整个包
 // 示例:
 //
-//	//go:gogen: -output `$FILE_query`
-//	// go:gogen: plugin:gsql -output `$FILE_query` plugin:setter -output `0api_generated`
+//	//go:gogen -output `$FILE_query`
+//	// go:gogen plugin:gsql -output `$FILE_query` plugin:setter -output `0api_generated`
 type PackageConfig struct {
 	PackageDir string // 包目录路径
 
 	// DefaultOutput 默认输出路径（对所有插件生效）
-	// 来自: //go:gogen: -output `xxx`
+	// 来自: //go:gogen -output `xxx`
 	DefaultOutput string
 
 	// PluginOutputs 插件特定的输出路径
 	// key: 插件名（小写）, value: 输出路径
-	// 来自: //go:gogen: plugin:gsql -output `xxx`
+	// 来自: //go:gogen plugin:gsql -output `xxx`
 	PluginOutputs map[string]string
 }
 

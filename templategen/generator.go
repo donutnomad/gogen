@@ -78,7 +78,7 @@ func (g *TemplateGenerator) Generate(ctx *plugin.GenerateContext) (*plugin.Gener
 	// 处理每个文件
 	for _, filePath := range filePaths {
 		targets := fileTargets[filePath]
-		// 解析文件的 go:gogen: plugin:templategen 配置
+		// 解析文件的 go:gogen plugin:templategen 配置
 		configs, err := parseTemplateConfigs(filePath)
 		if err != nil {
 			result.AddError(fmt.Errorf("解析 %s 的模板配置失败: %w", filePath, err))
@@ -142,6 +142,7 @@ type TemplateConfig struct {
 
 // templateConfigRegex 匹配 plugin:templategen 配置
 var templateConfigRegex = regexp.MustCompile(`plugin:templategen\s+(.+?)(?:\s+plugin:|$)`)
+var gogenDirectiveRegex = regexp.MustCompile(`^go:gogen(?::|\s+)(.*)$`)
 
 // parseTemplateConfigs 解析文件中的 templategen 配置
 func parseTemplateConfigs(filePath string) ([]TemplateConfig, error) {
@@ -163,16 +164,16 @@ func parseTemplateConfigs(filePath string) ([]TemplateConfig, error) {
 			text = strings.TrimSuffix(text, "*/")
 			text = strings.TrimSpace(text)
 
-			// 检查是否是 go:gogen: 指令
-			if !strings.HasPrefix(text, "go:gogen:") {
+			// 检查是否是 go:gogen 指令
+			directiveMatches := gogenDirectiveRegex.FindStringSubmatch(text)
+			if len(directiveMatches) < 2 {
 				continue
 			}
-			text = strings.TrimPrefix(text, "go:gogen:")
-			text = strings.TrimSpace(text)
+			text = strings.TrimSpace(directiveMatches[1])
 
 			// 查找 plugin:templategen 配置
-			matches := templateConfigRegex.FindAllStringSubmatch(text, -1)
-			for _, match := range matches {
+			configMatches := templateConfigRegex.FindAllStringSubmatch(text, -1)
+			for _, match := range configMatches {
 				if len(match) < 2 {
 					continue
 				}

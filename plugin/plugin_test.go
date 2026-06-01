@@ -270,6 +270,61 @@ func (u *User) Save() error {
 	}
 }
 
+func TestScannerParsesGoGogenCommentAnnotations(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "generate.go")
+	content := "package test\n\n" +
+		"//go:gogen @Abigen(abi=Escrow.json)\n" +
+		"//go:gogen @Pick(name=UserID, source=`example.User`, fields=`[ID]`)\n"
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	scanner := NewScanner()
+	result, err := scanner.Scan(context.Background(), tmpDir)
+	if err != nil {
+		t.Fatalf("scan failed: %v", err)
+	}
+	if len(result.Comments) != 2 {
+		t.Fatalf("expected 2 comment annotations, got %d", len(result.Comments))
+	}
+	if len(result.PackageConfigs) != 0 {
+		t.Fatalf("expected 0 package configs, got %d", len(result.PackageConfigs))
+	}
+	if GetAnnotation(result.Comments[0].Annotations, "Abigen") == nil {
+		t.Fatalf("expected Abigen annotation")
+	}
+	if GetAnnotation(result.Comments[1].Annotations, "Pick") == nil {
+		t.Fatalf("expected Pick annotation")
+	}
+}
+
+func TestScannerParsesGoGogenPackageConfigWithoutColon(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "generate.go")
+	content := "package test\n\n" +
+		"//go:gogen plugin:templategen -output `generated`\n"
+	if err := os.WriteFile(testFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	scanner := NewScanner()
+	result, err := scanner.Scan(context.Background(), tmpDir)
+	if err != nil {
+		t.Fatalf("scan failed: %v", err)
+	}
+	if len(result.PackageConfigs) != 1 {
+		t.Fatalf("expected 1 package config, got %d", len(result.PackageConfigs))
+	}
+	config := result.PackageConfigs[tmpDir]
+	if config == nil {
+		t.Fatalf("expected package config for %s", tmpDir)
+	}
+	if config.PluginOutputs["templategen"] != "generated" {
+		t.Fatalf("expected templategen output generated, got %q", config.PluginOutputs["templategen"])
+	}
+}
+
 func TestScannerWithFilter(t *testing.T) {
 	// 创建临时测试目录
 	tmpDir := t.TempDir()

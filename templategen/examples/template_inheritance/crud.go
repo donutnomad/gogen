@@ -1,6 +1,6 @@
 //go:generate gotoolkit gen .
 
-//go:gogen: plugin:templategen -template ./templates/crud.tmpl
+//go:gogen plugin:templategen -template ./templates/crud.tmpl
 
 package template_inheritance
 

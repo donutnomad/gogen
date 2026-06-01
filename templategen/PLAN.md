@@ -2,17 +2,17 @@
 
 ## 概述
 
-创建一个基于 Go template 的代码生成器 `templategen`，通过 `//go:gogen:` 文件级指令触发，支持 `@Define` 和 `@Import` 注解提供元数据，智能处理 import 路径映射，并集成 Sprig 库提供丰富的模板函数。
+创建一个基于 Go template 的代码生成器 `templategen`，通过 `//go:gogen` 文件级指令触发，支持 `@Define` 和 `@Import` 注解提供元数据，智能处理 import 路径映射，并集成 Sprig 库提供丰富的模板函数。
 
 ## 核心设计
 
 ### 触发方式
 
-使用文件级 `go:gogen:` 指令触发 templategen：
+使用文件级 `go:gogen` 指令触发 templategen：
 
 ```go
-//go:gogen: plugin:templategen -template ./templates/service.tmpl
-//go:gogen: plugin:templategen -template ./templates/repo.tmpl -output $FILE_repo.go
+//go:gogen plugin:templategen -template ./templates/service.tmpl
+//go:gogen plugin:templategen -template ./templates/repo.tmpl -output $FILE_repo.go
 
 package myservice
 ```
@@ -231,7 +231,7 @@ templategen/
 4. 在 `cmd/main.go` 注册生成器
 
 ### 阶段 2：目标收集
-1. 识别文件级 `go:gogen: plugin:templategen` 指令
+1. 识别文件级 `go:gogen plugin:templategen` 指令
 2. 收集文件中带 `@Define` 注解的 struct/interface/method
 3. 解析 @Define 参数，区分字符串值和类型引用
 4. 按 receiver 将方法分组到对应结构体
@@ -280,7 +280,7 @@ templategen/
 
 **源文件 `service.go`:**
 ```go
-//go:gogen: plugin:templategen -template ./templates/service.tmpl
+//go:gogen plugin:templategen -template ./templates/service.tmpl
 
 package myservice
 
@@ -318,7 +318,7 @@ func (s *MyService) GetReader() io.Reader {
 
 **源文件 `handler.go`:**
 ```go
-//go:gogen: plugin:templategen -template ./templates/handler.tmpl -output $FILE_wrap.go
+//go:gogen plugin:templategen -template ./templates/handler.tmpl -output $FILE_wrap.go
 
 package api
 
@@ -360,7 +360,7 @@ func (h *{{ $.Name }}) {{ .Name }}WithAuth(ctx context.Context{{ range .Params }
 
 **源文件 `k8s.go`:**
 ```go
-//go:gogen: plugin:templategen -template ./templates/k8s.tmpl
+//go:gogen plugin:templategen -template ./templates/k8s.tmpl
 
 package controller
 
@@ -380,8 +380,8 @@ func (c *PodController) Create(ctx context.Context) error {
 
 **源文件 `model.go`:**
 ```go
-//go:gogen: plugin:templategen -template ./templates/repo.tmpl -output $FILE_repo.go
-//go:gogen: plugin:templategen -template ./templates/service.tmpl -output $FILE_service.go
+//go:gogen plugin:templategen -template ./templates/repo.tmpl -output $FILE_repo.go
+//go:gogen plugin:templategen -template ./templates/service.tmpl -output $FILE_service.go
 
 package domain
 
@@ -451,7 +451,7 @@ func ({{ $r }} *{{ .Name }}) Create() error {
 支持通过参数指定额外的模板文件用于继承：
 
 ```go
-//go:gogen: plugin:templategen -template ./templates/crud.tmpl -include ./templates/base.tmpl
+//go:gogen plugin:templategen -template ./templates/crud.tmpl -include ./templates/base.tmpl
 ```
 
 或自动加载同目录下的 `_*.tmpl` 文件作为基础模板：

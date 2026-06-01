@@ -1,6 +1,6 @@
 //go:generate gotoolkit gen .
 
-//go:gogen: plugin:templategen -template ./templates/wrapper.tmpl
+//go:gogen plugin:templategen -template ./templates/wrapper.tmpl
 
 package import_alias
 
