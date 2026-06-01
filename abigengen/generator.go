@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/donutnomad/eths/abigen/gogenapi"
+	"github.com/donutnomad/eths/abi/gogenapi"
 	"github.com/donutnomad/gogen/plugin"
 )
 

@@ -66,6 +66,10 @@ github.com/docker/go-units v0.5.0 h1:69rxXcBk27SvSaaxTtLh/8llcHD8vYHT7WSdRZ/jvr4
 github.com/docker/go-units v0.5.0/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=
 github.com/donutnomad/eths v0.2.0 h1:ksXtuyAwZ7vCDZ2zUtXsoAzXyrGqUcHq+ARUNjRsO7A=
 github.com/donutnomad/eths v0.2.0/go.mod h1:DMsChNzS0jOQdQVv6g9ryBGlcGBcLNcyLnj5ON3D9Po=
+github.com/donutnomad/eths v0.2.2 h1:iowtgv5aviXQ0sFz3xFo8Q+NQEVXYoIp4aqkV4E3xTQ=
+github.com/donutnomad/eths v0.2.2/go.mod h1:s8UFxWEyD5Lnb9JS91c5V0HIBJrZN/ZoYjMrDwNkxes=
+github.com/donutnomad/eths v0.2.3 h1:VwgEpTrZFGGmRpRDd37s5ziOb/sFR2BnozoyFiZAjM0=
+github.com/donutnomad/eths v0.2.3/go.mod h1:s8UFxWEyD5Lnb9JS91c5V0HIBJrZN/ZoYjMrDwNkxes=
 github.com/donutnomad/gg v0.0.0-20260110043427-f34493c8cfac h1:NC/7o24o4diPGRtqlqfv0siJRB199P4PbkBH1dyam1A=
 github.com/donutnomad/gg v0.0.0-20260110043427-f34493c8cfac/go.mod h1:La6rTjV7nBUvxx/Ml1iF+7/Q9okPwlUc0pOdkgUGv+k=
 github.com/donutnomad/gsql v0.2.3 h1:dKkHQBipRssqxH0RGzJDlq7TYGK0uuayskyWUBUR6dg=
