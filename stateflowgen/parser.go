@@ -45,7 +45,7 @@ var stateFlowConfigRegex = regexp.MustCompile(`@StateFlow(?:\(([^)]*)\))?`)
 var flowRuleRegex = regexp.MustCompile(`@Flow:\s*(.+)`)
 
 // paramRegex 匹配参数 key="value" 或 key=`value` 或 key=value
-var paramRegex = regexp.MustCompile(`(\w+)\s*=\s*(?:"([^"]*)"|` + "`" + `([^` + "`" + `]*)` + "`" + `|(\w+))`)
+var paramRegex = regexp.MustCompile(`(\w+)\s*=\s*(?:"([^"]*)"|` + "`" + `([^` + "`" + `]*)` + "`" + `|([^\s,)]+))`)
 
 // ParseStateFlowConfig 从文本中解析 @StateFlow 配置
 // 支持以下格式:

@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/donutnomad/gogen/abigengen"
 	"github.com/donutnomad/gogen/codegen"
 	"github.com/donutnomad/gogen/gormgen"
 	"github.com/donutnomad/gogen/mockgen"
@@ -29,9 +30,11 @@ func init() {
 	plugin.MustRegister(swaggen.NewSwagGenerator())
 	plugin.MustRegister(codegen.NewCodeGenerator())
 	plugin.MustRegister(stateflowgen.NewStateFlowGenerator())
+	plugin.MustRegister(stateflowgen.NewStateFlowV2Generator())
 	plugin.MustRegister(templategen.NewTemplateGenerator())
 	plugin.MustRegister(pickgen.NewPickGenerator())
 	plugin.MustRegister(pickgen.NewOmitGenerator())
+	plugin.MustRegister(abigengen.NewAbigenGenerator())
 }
 
 var (
